@@ -1,5 +1,6 @@
+import json
 import re
-import requests
+import urllib.request
 from collections import defaultdict, Counter
 
 class WordPieceTokenizer():
@@ -7,23 +8,26 @@ class WordPieceTokenizer():
         self.vocab = {}
         self.word_freqs = {}
         self.vocab_size = vocab_size
-        self.inv_vocab = {}
         self.unk_token = "[UNK]"
+        self.brk_token = "[BRK]"
         self.sep_token = "[SEP]"
         self.cls_token = "[CLS]"
         self.pad_token = "[PAD]"
         self.mask_token = "[MASK]"
         self.wordpieces_prefix ="##"
 
-
    
     def fit(self, text):
         # Count word frequencies
-        words = re.findall(r'\w+|[^\w\s]', text)
+        text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
+        words = re.findall(r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+', text)
+        
         self.word_freqs = Counter(words)
 
         alphabet = []
         for word in self.word_freqs.keys():
+            if word == self.brk_token:
+                continue 
             # Add the first letter of the word to the alphabet if not exists
             if word[0] not in alphabet:
                 alphabet.append(word[0])
@@ -35,7 +39,7 @@ class WordPieceTokenizer():
         alphabet.sort()
         
         # Add special tokens to the vocabulary plus the created alphabet
-        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token ] + alphabet.copy()
+        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token, self.brk_token ] + alphabet.copy()
         # Create a dictionary with all words and all splitted characters
         splits = {
             word: [c if i == 0 else f"##{c}" for i, c in enumerate(word)]
@@ -59,30 +63,84 @@ class WordPieceTokenizer():
                 else best_pair[0] + best_pair[1]
             )
             self.vocab.append(new_token)
+        print(self.vocab)
+        print(len(self.vocab))
+        print(self.word_freqs)
     
-    def encode_word(self, word):
-        tokens = []
-        while len(word) > 0:
-            i = len(word)
-            while i > 0 and word[:i] not in self.vocab:
-                i -= 1
-            if i == 0:
-                return ["[UNK]"]
-            tokens.append(word[:i])
-            word = word[i:]
-            if len(word) > 0:
-                word = f"##{word}"
-        return tokens
+    
+    def encode(self, text):
+        # Normalize and split the text
+        text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
+        words = re.findall(r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+|' + re.escape(self.brk_token), text)
+        print(words)
 
-    def encode_text(self, text):
-        words = re.findall(r'\w+|[^\w\s]', text)
+        
+        # Tokenize into words and subwords
         tokens = []
         for word in words:
-            tokens.extend(self.encode_word(word))
+            if word in self.vocab:
+                tokens.append(word)
+            else:
+                sub_tokens = self.tokenize_word(word)
+                tokens.extend(sub_tokens)
+
         return tokens
+
+    def tokenize_word(self, word):
+        if word == self.brk_token:
+            return [self.brk_token]
+        
+        subwords = []
+        start = 0
+        while start < len(word):
+            match = False
+            for end in range(len(word), start, -1):
+                subword = word[start:end]
+                if start > 0:
+                    subword = "##" + subword
+                if subword in self.vocab:
+                    subwords.append(subword)
+                    start = end
+                    match = True
+                    break
+            if not match:  # No subword match found
+                subwords.append(self.unk_token)
+                break
+        return subwords
     
     def decode(self, tokens):
-        return "".join(tokens).replace("##", "")
+        text = ''
+        for token in tokens:
+            if token.startswith(self.wordpieces_prefix):
+                # Remove the '##' prefix and concatenate without space
+                text += token[2:]
+            elif token in [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token]:
+                # Skip special tokens if desired, or handle them differently
+                continue
+            elif token == self.brk_token:
+                # Replace [BRK] with a newline character
+                text += '\n'
+            else:
+                # Add a space before the token if it's not the first token and the last character isn't a newline
+                if text and not text.endswith('\n'):
+                    text += ' '
+                text += token
+        return text
+    
+    def save(self, path):
+       with open(path, 'w') as f:
+            json.dump({
+                'vocab': self.vocab,
+                'word_freqs': self.word_freqs,
+            }, f, ensure_ascii=False)
+
+    def load(self, path):
+        with open(path, 'r') as f:
+            data = json.load(f)
+            self.vocab =  data['vocab']
+            self.vocab_size = len(self.vocab)
+            self.word_freqs =  {k: int(v) for k, v in data['word_freqs'].items()}
+            
         
     def _compute_pair_scores(self, splits):
         letter_freqs = defaultdict(int)
@@ -136,24 +194,47 @@ def load_separate_and_clean_stories(filename):
     return cleaned_stories
 
 
-url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
-response = requests.get(url)
-text = response.text
 
-start = text.find('Chapter I.]')
-end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
-text = text[start:end]
+# TRAIN THE TOKENIZER
+# Load the text to train the tokenizer
+# url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
+# with urllib.request.urlopen(url) as response:
+#     # Read the response content
+#     data = response.read()
+
+#     # Decode the bytes to string using utf-8 encoding
+#     text = data.decode('utf-8')
+
+# start = text.find('Chapter I.]')
+# end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
+# text = text[start:end]
+
+# # Train the tokenizer
+# tokenizer = WordPieceTokenizer(10000)
+# tokenizer.fit(text)
+
+# # Save the tokenizer
+# tokenizer.save('tokenizer/wordPieceVocab.json')
 
 
-corpus = [
-    "This is the Hugging Face Course.",
-    "This chapter is about tokenization.",
-    "This section shows several tokenizer algorithms.",
-    "Hopefully, you will be able to understand how they are trained and generate tokens.",
-]
-corpus = " ".join(corpus)
-# Train the tokenizer
-tokenizer = WordPieceTokenizer(1000)
-tokenizer.fit(corpus)
-print(tokenizer.encode_word("Hugging"))
-print(tokenizer.decode("H0gging"))
+# USE THE TOKENIZER
+# Load the dataset
+# filename = "tokenizer/dataset/merged_clean.txt"
+filename = "tokenizer/dataset/combined_stories.txt"
+dataset = load_separate_and_clean_stories(filename)
+
+# Load the tokenizer
+tokenizer = WordPieceTokenizer()
+tokenizer.load('tokenizer/wordPieceVocab.json')
+
+# Encode the first story
+story = dataset[0]
+print(story)
+# tokens = tokenizer.encode_text(story)
+tokens = tokenizer.encode(story)
+print(tokens)
+
+
+# Decode the tokens
+decoded_story = tokenizer.decode(tokens)
+print(decoded_story)
