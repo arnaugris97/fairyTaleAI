@@ -9,6 +9,7 @@ class WordPieceTokenizer():
         self.word_freqs = {}
         self.vocab_size = vocab_size
         self.unk_token = "[UNK]"
+        self.aps_token = "[APS]"
         self.brk_token = "[BRK]"
         self.sep_token = "[SEP]"
         self.cls_token = "[CLS]"
@@ -20,6 +21,8 @@ class WordPieceTokenizer():
     def fit(self, text):
         # Count word frequencies
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
+        # Change charcater ' to [APS]
+        text = re.sub(r'\'', self.aps_token, text)
         words = re.findall(r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+', text)
         
         self.word_freqs = Counter(words)
@@ -39,7 +42,7 @@ class WordPieceTokenizer():
         alphabet.sort()
         
         # Add special tokens to the vocabulary plus the created alphabet
-        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token, self.brk_token ] + alphabet.copy()
+        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token, self.brk_token, self.aps_token ] + alphabet.copy()
         # Create a dictionary with all words and all splitted characters
         splits = {
             word: [c if i == 0 else f"##{c}" for i, c in enumerate(word)]
@@ -71,9 +74,10 @@ class WordPieceTokenizer():
     def encode(self, text):
         # Normalize and split the text
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
-        words = re.findall(r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+|' + re.escape(self.brk_token), text)
-        print(words)
-
+        # Change charcater ' to [APS] and
+        text = re.sub(r'\'', self.aps_token, text)
+        pattern = r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+|(?:' + re.escape(self.brk_token) + r'|' + re.escape(self.aps_token) + r')'
+        words = re.findall(pattern, text)
         
         # Tokenize into words and subwords
         tokens = []
@@ -117,12 +121,15 @@ class WordPieceTokenizer():
             elif token in [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token]:
                 # Skip special tokens if desired, or handle them differently
                 continue
+            elif token == self.aps_token:
+                # Replace [APS] with a ' character
+                text += "'"
             elif token == self.brk_token:
                 # Replace [BRK] with a newline character
                 text += '\n'
             else:
                 # Add a space before the token if it's not the first token and the last character isn't a newline
-                if text and not text.endswith('\n'):
+                if text and not text.endswith('\n') and not text.endswith("'"):
                     text += ' '
                 text += token
         return text
@@ -209,9 +216,12 @@ def load_separate_and_clean_stories(filename):
 # end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
 # text = text[start:end]
 
+# filename = "tokenizer/dataset/merged_clean.txt"
+# dataset = load_separate_and_clean_stories(filename)
+
 # # Train the tokenizer
-# tokenizer = WordPieceTokenizer(10000)
-# tokenizer.fit(text)
+# tokenizer = WordPieceTokenizer(2000)
+# tokenizer.fit(dataset[0])
 
 # # Save the tokenizer
 # tokenizer.save('tokenizer/wordPieceVocab.json')
@@ -219,8 +229,8 @@ def load_separate_and_clean_stories(filename):
 
 # USE THE TOKENIZER
 # Load the dataset
-# filename = "tokenizer/dataset/merged_clean.txt"
-filename = "tokenizer/dataset/combined_stories.txt"
+filename = "tokenizer/dataset/merged_clean.txt"
+# filename = "tokenizer/dataset/combined_stories.txt"
 dataset = load_separate_and_clean_stories(filename)
 
 # Load the tokenizer
@@ -229,10 +239,10 @@ tokenizer.load('tokenizer/wordPieceVocab.json')
 
 # Encode the first story
 story = dataset[0]
-print(story)
+#print(story)
 # tokens = tokenizer.encode_text(story)
 tokens = tokenizer.encode(story)
-print(tokens)
+# print(tokens)
 
 
 # Decode the tokens
