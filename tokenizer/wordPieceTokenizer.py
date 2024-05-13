@@ -10,6 +10,7 @@ class WordPieceTokenizer():
         self.vocab_size = vocab_size
         self.unk_token = "[UNK]"
         self.aps_token = "[APS]"
+        self.space_token = "[SPACE]"
         self.brk_token = "[BRK]"
         self.sep_token = "[SEP]"
         self.cls_token = "[CLS]"
@@ -21,6 +22,9 @@ class WordPieceTokenizer():
     def fit(self, text):
         # Count word frequencies
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
+        text = re.sub(r"\s'\s", self.space_token + self.aps_token + self.space_token, text)
+        text = re.sub(r"\s'", self.space_token + self.aps_token, text)
+        text = re.sub(r"'\s",  self.aps_token + self.space_token, text)
         # Change charcater ' to [APS]
         text = re.sub(r'\'', self.aps_token, text)
         words = re.findall(r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+', text)
@@ -29,7 +33,7 @@ class WordPieceTokenizer():
 
         alphabet = []
         for word in self.word_freqs.keys():
-            if word == self.brk_token:
+            if word == self.brk_token or word == self.aps_token or word == self.space_token:
                 continue 
             # Add the first letter of the word to the alphabet if not exists
             if word[0] not in alphabet:
@@ -42,7 +46,7 @@ class WordPieceTokenizer():
         alphabet.sort()
         
         # Add special tokens to the vocabulary plus the created alphabet
-        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token, self.brk_token, self.aps_token ] + alphabet.copy()
+        self.vocab = [self.unk_token, self.cls_token, self.sep_token, self.space_token, self.pad_token, self.mask_token, self.brk_token, self.aps_token ] + alphabet.copy()
         # Create a dictionary with all words and all splitted characters
         splits = {
             word: [c if i == 0 else f"##{c}" for i, c in enumerate(word)]
@@ -74,9 +78,12 @@ class WordPieceTokenizer():
     def encode(self, text):
         # Normalize and split the text
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
+        text = re.sub(r"\s'\s", self.space_token + self.aps_token + self.space_token, text)
+        text = re.sub(r"\s'", self.space_token + self.aps_token, text)
+        text = re.sub(r"'\s",  self.aps_token + self.space_token, text)
         # Change charcater ' to [APS] and
         text = re.sub(r'\'', self.aps_token, text)
-        pattern = r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+|(?:' + re.escape(self.brk_token) + r'|' + re.escape(self.aps_token) + r')'
+        pattern = r'\w+[\w.,;!?\'\"-]*|[\.,;!?\'\"-]+|(?:' + re.escape(self.brk_token) + r'|' + re.escape(self.aps_token) + r'|' + re.escape(self.space_token) + r')'
         words = re.findall(pattern, text)
         
         # Tokenize into words and subwords
@@ -93,6 +100,10 @@ class WordPieceTokenizer():
     def tokenize_word(self, word):
         if word == self.brk_token:
             return [self.brk_token]
+        if word == self.aps_token:
+            return [self.aps_token]
+        if word == self.space_token:
+            return [self.space_token]
         
         subwords = []
         start = 0
@@ -124,6 +135,9 @@ class WordPieceTokenizer():
             elif token == self.aps_token:
                 # Replace [APS] with a ' character
                 text += "'"
+            elif token == self.space_token:
+                # Replace [SPACE] with a space character
+                text += ' '
             elif token == self.brk_token:
                 # Replace [BRK] with a newline character
                 text += '\n'
@@ -204,27 +218,27 @@ def load_separate_and_clean_stories(filename):
 
 # TRAIN THE TOKENIZER
 # Load the text to train the tokenizer
-# url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
-# with urllib.request.urlopen(url) as response:
-#     # Read the response content
-#     data = response.read()
+url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
+with urllib.request.urlopen(url) as response:
+    # Read the response content
+    data = response.read()
 
-#     # Decode the bytes to string using utf-8 encoding
-#     text = data.decode('utf-8')
+    # Decode the bytes to string using utf-8 encoding
+    text = data.decode('utf-8')
 
-# start = text.find('Chapter I.]')
-# end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
-# text = text[start:end]
+start = text.find('Chapter I.]')
+end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
+text = text[start:end]
 
-# filename = "tokenizer/dataset/merged_clean.txt"
-# dataset = load_separate_and_clean_stories(filename)
+filename = "tokenizer/dataset/merged_clean.txt"
+dataset = load_separate_and_clean_stories(filename)
 
-# # Train the tokenizer
-# tokenizer = WordPieceTokenizer(2000)
-# tokenizer.fit(dataset[0])
+# Train the tokenizer
+tokenizer = WordPieceTokenizer(2000)
+tokenizer.fit(dataset[0])
 
-# # Save the tokenizer
-# tokenizer.save('tokenizer/wordPieceVocab.json')
+# Save the tokenizer
+tokenizer.save('tokenizer/wordPieceVocab.json')
 
 
 # USE THE TOKENIZER
