@@ -75,7 +75,7 @@ class WordPieceTokenizer():
         print(self.word_freqs)
     
     
-    def encode(self, text):
+    def encode(self, text, max_length=30):
         # Normalize and split the text
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
         text = re.sub(r"\s'\s", self.space_token + self.aps_token + self.space_token, text)
@@ -94,6 +94,13 @@ class WordPieceTokenizer():
             else:
                 sub_tokens = self.tokenize_word(word)
                 tokens.extend(sub_tokens)
+        
+        # Add padding if necessary
+        if len(tokens) < max_length:
+            tokens += [self.pad_token] * (max_length - len(tokens))
+    
+        # Add CLS and SEP tokens
+        tokens = [self.cls_token] + tokens + [self.sep_token]
 
         return tokens
 
@@ -218,27 +225,27 @@ def load_separate_and_clean_stories(filename):
 
 # TRAIN THE TOKENIZER
 # Load the text to train the tokenizer
-url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
-with urllib.request.urlopen(url) as response:
-    # Read the response content
-    data = response.read()
+# url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
+# with urllib.request.urlopen(url) as response:
+#     # Read the response content
+#     data = response.read()
 
-    # Decode the bytes to string using utf-8 encoding
-    text = data.decode('utf-8')
+#     # Decode the bytes to string using utf-8 encoding
+#     text = data.decode('utf-8')
 
-start = text.find('Chapter I.]')
-end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
-text = text[start:end]
+# start = text.find('Chapter I.]')
+# end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
+# text = text[start:end]
 
-filename = "tokenizer/dataset/merged_clean.txt"
-dataset = load_separate_and_clean_stories(filename)
+# filename = "tokenizer/dataset/merged_clean.txt"
+# dataset = load_separate_and_clean_stories(filename)
 
-# Train the tokenizer
-tokenizer = WordPieceTokenizer(2000)
-tokenizer.fit(dataset[0])
+# # Train the tokenizer
+# tokenizer = WordPieceTokenizer(10000)
+# tokenizer.fit(dataset[0])
 
-# Save the tokenizer
-tokenizer.save('tokenizer/wordPieceVocab.json')
+# # Save the tokenizer
+# tokenizer.save('tokenizer/wordPieceVocab.json')
 
 
 # USE THE TOKENIZER
@@ -253,12 +260,23 @@ tokenizer.load('tokenizer/wordPieceVocab.json')
 
 # Encode the first story
 story = dataset[0]
-#print(story)
+
+# Split the story into sentences
+sentences = re.split(r'\n', story)
+
+# Tokenize the sentences
+tokens = []
+for sentence in sentences:
+    tokens.append(tokenizer.encode(sentence, 21))
+
+for token in tokens:
+    print(token)
+
 # tokens = tokenizer.encode_text(story)
-tokens = tokenizer.encode(story)
+# tokens = tokenizer.encode(story)
 # print(tokens)
 
 
 # Decode the tokens
-decoded_story = tokenizer.decode(tokens)
-print(decoded_story)
+# decoded_story = tokenizer.decode(tokens)
+# print(decoded_story)
