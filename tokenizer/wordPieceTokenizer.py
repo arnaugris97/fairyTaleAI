@@ -1,4 +1,5 @@
 import json
+import random
 import re
 import urllib.request
 from collections import defaultdict, Counter
@@ -17,6 +18,8 @@ class WordPieceTokenizer():
         self.pad_token = "[PAD]"
         self.mask_token = "[MASK]"
         self.wordpieces_prefix ="##"
+        self.word2idx = {}
+        self.idx2word = {}
 
    
     def fit(self, text):
@@ -70,6 +73,8 @@ class WordPieceTokenizer():
                 else best_pair[0] + best_pair[1]
             )
             self.vocab.append(new_token)
+        self.word2idx = {word: idx for idx, word in enumerate(self.vocab)}
+        self.idx2word = {idx: word for idx, word in enumerate(self.vocab)}
         print(self.vocab)
         print(len(self.vocab))
         print(self.word_freqs)
@@ -94,15 +99,25 @@ class WordPieceTokenizer():
             else:
                 sub_tokens = self.tokenize_word(word)
                 tokens.extend(sub_tokens)
-        
-        # Add padding if necessary
-        if len(tokens) < max_length:
-            tokens += [self.pad_token] * (max_length - len(tokens))
     
         # Add CLS and SEP tokens
         tokens = [self.cls_token] + tokens + [self.sep_token]
+        
+        # Convert tokens to ids
+        token_ids = []
+        token_ids.extend(self.word2idx[token] for token in tokens if token in self.word2idx)
 
-        return tokens
+        # Create attention mask
+        attention_mask = [1] * len(token_ids)
+
+        # Create token type ids
+        token_type_ids = [0] * len(token_ids)
+
+        padded_token_ids = token_ids + [self.word2idx[self.pad_token]] * (max_length - len(token_ids))
+        attention_mask = attention_mask + [0] * (max_length - len(attention_mask))
+        token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
+
+        return padded_token_ids, attention_mask, token_type_ids
 
     def tokenize_word(self, word):
         if word == self.brk_token:
@@ -130,7 +145,8 @@ class WordPieceTokenizer():
                 break
         return subwords
     
-    def decode(self, tokens):
+    def decode(self, indices):
+        tokens = [self.idx2word[index] for index in indices]
         text = ''
         for token in tokens:
             if token.startswith(self.wordpieces_prefix):
@@ -160,6 +176,8 @@ class WordPieceTokenizer():
             json.dump({
                 'vocab': self.vocab,
                 'word_freqs': self.word_freqs,
+                'word2idx': self.word2idx,
+                'idx2word': self.idx2word,
             }, f, ensure_ascii=False)
 
     def load(self, path):
@@ -168,6 +186,8 @@ class WordPieceTokenizer():
             self.vocab =  data['vocab']
             self.vocab_size = len(self.vocab)
             self.word_freqs =  {k: int(v) for k, v in data['word_freqs'].items()}
+            self.word2idx =  {k: int(v) for k, v in data['word2idx'].items()}
+            self.idx2word = {int(k): v for k, v in data['idx2word'].items()}
             
         
     def _compute_pair_scores(self, splits):
@@ -207,6 +227,22 @@ class WordPieceTokenizer():
             splits[word] = split
         return splits
 
+def mask_tokens(token_ids, tokenizer):
+    # Mask 15% of the tokens
+    masked_indices = set()
+    # 15% of significant tokens, different to [CLS], [SEP], and [PAD]
+    significant_tokens = [token for token in token_ids if token not in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]]
+    num_masked = max(1, int(len(significant_tokens) * 0.15))
+    while len(masked_indices) < num_masked:
+        index = random.randint(1, len(token_ids) - 2)
+        if index in masked_indices:
+            continue
+        token = token_ids[index]
+        if token in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]:
+            continue
+        token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
+        masked_indices.add(index)
+    return token_ids, masked_indices
 
 def load_separate_and_clean_stories(filename):
     with open(filename, 'r') as file:
@@ -267,10 +303,16 @@ sentences = re.split(r'\n', story)
 # Tokenize the sentences
 tokens = []
 for sentence in sentences:
-    tokens.append(tokenizer.encode(sentence, 21))
+    token_ids, attention_mask, token_type_ids = tokenizer.encode(sentence, 21)
+    print(f'token_ids:', token_ids)
+    print(f'attention_mask:', attention_mask)
+    print(f'token_type_ids', token_type_ids)
 
-for token in tokens:
-    print(token)
+    masked_input_ids, labels = mask_tokens(token_ids, tokenizer)
+    print(f'masked_input_ids:', masked_input_ids)
+    print(f'labels:', labels)
+
+
 
 # tokens = tokenizer.encode_text(story)
 # tokens = tokenizer.encode(story)
