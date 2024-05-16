@@ -27,7 +27,7 @@ class Dataloader(Dataset):
     def __getitem__(self, idx):
         
         title = self.dataset.iloc[idx]['Title']
-        text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
+        text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])[:-1]
         list_sentences = [''.join(map(str, text[i:i+self.sentences])) for i in range(0, len(text), self.sentences)]
 
         return title,text,list_sentences
