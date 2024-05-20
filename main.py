@@ -13,13 +13,17 @@ print(len(dataloader.__getitem__(0)[2]))
 sentences = dataloader.__getitem__(0)[1]
 tokenizer = WordPieceTokenizer()
 tokenizer.load('tokenizer/wordPieceVocab.json')
-for sentence in sentences:
-    token_ids, attention_mask, token_type_ids = tokenizer.encode(sentence, 21)
+
+# Do a loop that provide two senentences at each step
+for i in range(0, len(sentences), 2):
+    sentence1 = sentences[i]
+    sentence2 = sentences[i+1]
+    token_ids_sentence1 = tokenizer.encode(sentence1)
+    token_ids_sentence2 = tokenizer.encode(sentence2)
+    token_ids, attention_mask, token_type_ids = tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
     print(f'token_ids:', token_ids)
     print(f'attention_mask:', attention_mask)
     print(f'token_type_ids', token_type_ids)
-
     masked_input_ids, labels = mask_tokens(token_ids, tokenizer)
     print(f'masked_input_ids:', masked_input_ids)
     print(f'labels:', labels)
-    

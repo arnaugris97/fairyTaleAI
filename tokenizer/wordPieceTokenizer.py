@@ -80,7 +80,7 @@ class WordPieceTokenizer():
         print(self.word_freqs)
     
     
-    def encode(self, text, max_length=30):
+    def encode(self, text):
         # Normalize and split the text
         text = re.sub(r'\n+', ' ' + self.brk_token + ' ', text)
         text = re.sub(r"\s'\s", self.space_token + self.aps_token + self.space_token, text)
@@ -100,24 +100,12 @@ class WordPieceTokenizer():
                 sub_tokens = self.tokenize_word(word)
                 tokens.extend(sub_tokens)
     
-        # Add CLS and SEP tokens
-        tokens = [self.cls_token] + tokens + [self.sep_token]
         
         # Convert tokens to ids
         token_ids = []
         token_ids.extend(self.word2idx[token] for token in tokens if token in self.word2idx)
 
-        # Create attention mask
-        attention_mask = [1] * len(token_ids)
-
-        # Create token type ids
-        token_type_ids = [0] * len(token_ids)
-
-        padded_token_ids = token_ids + [self.word2idx[self.pad_token]] * (max_length - len(token_ids))
-        attention_mask = attention_mask + [0] * (max_length - len(attention_mask))
-        token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
-
-        return padded_token_ids, attention_mask, token_type_ids
+        return token_ids
 
     def tokenize_word(self, word):
         if word == self.brk_token:
@@ -145,31 +133,77 @@ class WordPieceTokenizer():
                 break
         return subwords
     
+    def add_special_tokens(self, token_ids1, token_ids2, max_length=60):
+        tokens_with_special_tokens  = [self.word2idx[self.cls_token]] + token_ids1 + [self.word2idx[self.sep_token]] + token_ids2 + [self.word2idx[self.sep_token]]
+        # Create attention mask
+        attention_mask = [1] * len(tokens_with_special_tokens)
+
+        # Create token segment type ids
+        token_type_ids = [0] * (len(token_ids1) + 2) + [1] * (len(token_ids2) + 1)
+        
+
+        padded_token_ids = tokens_with_special_tokens + [self.word2idx[self.pad_token]] * (max_length - len(tokens_with_special_tokens))
+        attention_mask = attention_mask + [0] * (max_length - len(attention_mask))
+        token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
+        
+        return padded_token_ids, attention_mask, token_type_ids
+    
     def decode(self, indices):
         tokens = [self.idx2word[index] for index in indices]
-        text = ''
-        for token in tokens:
+        # Split the text by the first sep_token
+        sep_index = tokens.index(self.sep_token)
+        sentence1 = tokens[1:sep_index]
+        sentence2 = tokens[sep_index + 1:]
+        text1 = ''
+        text2 = ''
+        # Perform for loop for both sentences at the same time
+        
+
+        for token in sentence1:
             if token.startswith(self.wordpieces_prefix):
                 # Remove the '##' prefix and concatenate without space
-                text += token[2:]
+                text1 += token[2:]
             elif token in [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token]:
                 # Skip special tokens if desired, or handle them differently
                 continue
             elif token == self.aps_token:
                 # Replace [APS] with a ' character
-                text += "'"
+                text1 += "'"
             elif token == self.space_token:
                 # Replace [SPACE] with a space character
-                text += ' '
+                text1 += ' '
             elif token == self.brk_token:
                 # Replace [BRK] with a newline character
-                text += '\n'
+                text1 += '\n'
             else:
                 # Add a space before the token if it's not the first token and the last character isn't a newline
-                if text and not text.endswith('\n') and not text.endswith("'"):
-                    text += ' '
-                text += token
-        return text
+                if text1 and not text1.endswith('\n') and not text1.endswith("'"):
+                    text1 += ' '
+                text1 += token
+
+        for token in sentence1:
+            if token.startswith(self.wordpieces_prefix):
+                # Remove the '##' prefix and concatenate without space
+                text2 += token[2:]
+            elif token in [self.unk_token, self.cls_token, self.sep_token, self.pad_token, self.mask_token]:
+                # Skip special tokens if desired, or handle them differently
+                continue
+            elif token == self.aps_token:
+                # Replace [APS] with a ' character
+                text2 += "'"
+            elif token == self.space_token:
+                # Replace [SPACE] with a space character
+                text2 += ' '
+            elif token == self.brk_token:
+                # Replace [BRK] with a newline character
+                text2 += '\n'
+            else:
+                # Add a space before the token if it's not the first token and the last character isn't a newline
+                if text2 and not text2.endswith('\n') and not text2.endswith("'"):
+                    text2 += ' '
+                text2 += token
+
+        return text1, text2
     
     def save(self, path):
        with open(path, 'w') as f:
