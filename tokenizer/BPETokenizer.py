@@ -186,7 +186,7 @@ print("Vocabularies are the same!")
 
 # LOAD AND USE THE TOKENIZER
 # Load the dataset
-filename = "dataset/merged_clean.txt"
+filename = "../dataset/merged_clean.txt"
 dataset = load_separate_and_clean_stories(filename)
 
 # Load the tokenizer

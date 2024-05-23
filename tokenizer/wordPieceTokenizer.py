@@ -307,7 +307,7 @@ def load_separate_and_clean_stories(filename):
 # end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
 # text = text[start:end]
 
-# filename = "tokenizer/dataset/merged_clean.txt"
+# filename = "dataset/merged_clean.txt"
 # dataset = load_separate_and_clean_stories(filename)
 
 # # Train the tokenizer
@@ -320,31 +320,31 @@ def load_separate_and_clean_stories(filename):
 
 # USE THE TOKENIZER
 # Load the dataset
-filename = "tokenizer/dataset/merged_clean.txt"
-# filename = "tokenizer/dataset/combined_stories.txt"
-dataset = load_separate_and_clean_stories(filename)
+# filename = "dataset/merged_clean.txt"
+# # filename = "dataset/combined_stories.txt"
+# dataset = load_separate_and_clean_stories(filename)
 
-# Load the tokenizer
-tokenizer = WordPieceTokenizer()
-tokenizer.load('tokenizer/wordPieceVocab.json')
+# # Load the tokenizer
+# tokenizer = WordPieceTokenizer()
+# tokenizer.load('tokenizer/wordPieceVocab.json')
 
-# Encode the first story
-story = dataset[0]
+# # Encode the first story
+# story = dataset[0]
 
-# Split the story into sentences
-sentences = re.split(r'\n', story)
+# # Split the story into sentences
+# sentences = re.split(r'\n', story)
 
-# Tokenize the sentences
-tokens = []
-for sentence in sentences:
-    token_ids, attention_mask, token_type_ids = tokenizer.encode(sentence, 21)
-    print(f'token_ids:', token_ids)
-    print(f'attention_mask:', attention_mask)
-    print(f'token_type_ids', token_type_ids)
+# # Tokenize the sentences
+# tokens = []
+# for sentence in sentences:
+#     token_ids, attention_mask, token_type_ids = tokenizer.encode(sentence)
+#     print(f'token_ids:', token_ids)
+#     print(f'attention_mask:', attention_mask)
+#     print(f'token_type_ids', token_type_ids)
 
-    masked_input_ids, labels = mask_tokens(token_ids, tokenizer)
-    print(f'masked_input_ids:', masked_input_ids)
-    print(f'labels:', labels)
+#     masked_input_ids, labels = mask_tokens(token_ids, tokenizer)
+#     print(f'masked_input_ids:', masked_input_ids)
+#     print(f'labels:', labels)
 
 
 
