@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 import re
 import random
+from tokenizer.wordPieceTokenizer import mask_tokens
 def separate_sentences(text):
     text = text.replace('...','#^')
     text = text.replace('.','~.')
@@ -17,10 +18,12 @@ def separate_sentences(text):
 
 class Custom_Dataset(Dataset):
 
-    def __init__(self, dataset,sentences):
+    def __init__(self, dataset,sentences,tokenizer):
         super().__init__()
         self.dataset = dataset
         self.sentences = sentences
+        self.tokenizer = tokenizer
+
     def __len__(self):
         return len(self.dataset)
 
@@ -29,7 +32,6 @@ class Custom_Dataset(Dataset):
         title = self.dataset.iloc[idx]['Title']
         text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
         list_sentences = [''.join(map(str, text[i:i+self.sentences])) for i in range(0, len(text), self.sentences)]
-
         # First approach: for each batch, take one random sentence from each story.
         # The next sentence (own text or another) is defined randomly.
 
@@ -48,11 +50,17 @@ class Custom_Dataset(Dataset):
             text2 = separate_sentences(self.dataset.iloc[idx2]['cleaned_story'])
             list_sentences2 = [''.join(map(str, text2[i:i+self.sentences])) for i in range(0, len(text2), self.sentences)]
 
-            it = random.randint(0,len(list_sentences)-1)
+            it = random.randint(0,len(list_sentences2)-1)
             next_sentence = list_sentences2[it]
             is_next = False            
 
-        return title,sentence,next_sentence,is_next
+
+        token_ids_sentence1 = self.tokenizer.encode(sentence)
+        token_ids_sentence2 = self.tokenizer.encode(next_sentence)
+        input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
+        masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
+    
+        return title, [masked_input_ids, attention_mask, segment_ids], [is_next, labels]
     
     # HE LLEGIT EN EL LINK DE BAIX QUE FAN EL BATCH A TEXT LEVEL. LLAVORS RECORREN CADA PARÀGRAF DEL TEXT I RETORNEN UNA PARELLA DE
     # PARÀGRAF+NEXT_SENTENCE PER CADA UN DELS PARÀGRAFS. AQUESTA IMPLEMENTACIÓ ÉS STRAIGHTFORWARD AMB UN BUCLE, PERÒ NO HO IMPLEMENTO
