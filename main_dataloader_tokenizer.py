@@ -14,7 +14,7 @@ dataset = Custom_Dataset(dataset_csv, 1,tokenizer)
 dataloader = torch.utils.data.DataLoader(dataset,batch_size=1,shuffle=False,num_workers=1,pin_memory=True)
 
 for i,data in enumerate(dataloader):
-    pass
+    print('ok')
 
 
 

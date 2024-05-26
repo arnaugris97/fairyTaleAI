@@ -2,6 +2,8 @@ from torch.utils.data import Dataset
 import re
 import random
 from tokenizer.wordPieceTokenizer import mask_tokens
+import torch
+
 def separate_sentences(text):
     text = text.replace('...','#^')
     text = text.replace('.','~.')
@@ -60,7 +62,7 @@ class Custom_Dataset(Dataset):
         input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
         masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
     
-        return title, [masked_input_ids, attention_mask, segment_ids], [is_next, labels]
+        return title, torch.tensor(masked_input_ids).unsqueeze(0), torch.tensor(attention_mask).unsqueeze(0), torch.tensor(segment_ids).unsqueeze(0), [is_next, labels]
     
     # HE LLEGIT EN EL LINK DE BAIX QUE FAN EL BATCH A TEXT LEVEL. LLAVORS RECORREN CADA PARÀGRAF DEL TEXT I RETORNEN UNA PARELLA DE
     # PARÀGRAF+NEXT_SENTENCE PER CADA UN DELS PARÀGRAFS. AQUESTA IMPLEMENTACIÓ ÉS STRAIGHTFORWARD AMB UN BUCLE, PERÒ NO HO IMPLEMENTO
