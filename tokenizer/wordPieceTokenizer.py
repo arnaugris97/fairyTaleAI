@@ -276,7 +276,10 @@ def mask_tokens(token_ids, tokenizer):
             continue
         token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
         masked_indices.add(index)
-    return token_ids, masked_indices
+    
+    labels = [-100 if i not in masked_indices else token_ids[i] for i in range(len(token_ids))]
+    return token_ids, labels
+
 
 def load_separate_and_clean_stories(filename):
     with open(filename, 'r') as file:
