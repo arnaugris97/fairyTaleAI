@@ -84,7 +84,7 @@ for epoch in range(3):  # Epochs
                 # Emmascarem tokens per MLM
                 masked_input_ids, labels = mask_tokens(input_ids, tokenizer)
 
-                # Prepare tensors by adding batch dimension (unsqueeze) and moving to device
+                # Preparar tensors per afegir dimensio de batch + moure a GPU si es pot
                 input_ids = prepare_tensor(input_ids, device)  
                 attention_mask = prepare_tensor(attention_mask, device)  
                 segment_ids = prepare_tensor(segment_ids, device)  
@@ -108,7 +108,7 @@ for epoch in range(3):  # Epochs
                     print(f"Epoch {epoch}, Step {step * len(sentences) + i // 2}, Loss {loss.item()}")
 
 
-    # Final step to update weights after the last accumulation step
+    # Update dels weights al final de l'entrenament
     if (step * len(sentences) + i // 2 + 1) % accumulation_steps != 0:
         optimizer.step()  # Final optimizer step to update model parameters
         optimizer.zero_grad()
