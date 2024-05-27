@@ -57,6 +57,10 @@ for epoch in range(3):  # Epochs
                 masked_lm_labels = prepare_tensor(labels, device)
                 next_sentence_labels = prepare_tensor([nsp_label], device)
 
+                if len(input_ids) > 512 :
+                    print(f"*************************************************** {sentence1} {sentence2}")
+                    continue
+
                 # Forward pass
                 outputs = model(input_ids, attention_mask, segment_ids, masked_lm_labels, next_sentence_labels)
                 loss, mlm_logits, nsp_logits = outputs
