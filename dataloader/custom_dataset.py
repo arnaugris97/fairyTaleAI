@@ -37,7 +37,7 @@ class Custom_Dataset(Dataset):
         # First approach: for each batch, take one random sentence from each story.
         # The next sentence (own text or another) is defined randomly.
 
-        it = random.randint(0,len(list_sentences)-1)
+        it = random.randint(0,len(list_sentences)-2)
         sentence = list_sentences[it]
 
         if random.random()<0.5:
@@ -47,7 +47,7 @@ class Custom_Dataset(Dataset):
         else:
             idx2 = idx
             while idx2 == idx:
-                idx2 = random.randint(0,len(self.dataset))
+                idx2 = random.randint(0,len(self.dataset)-1)
 
             text2 = separate_sentences(self.dataset.iloc[idx2]['cleaned_story'])
             list_sentences2 = [''.join(map(str, text2[i:i+self.sentences])) for i in range(0, len(text2), self.sentences)]
@@ -55,7 +55,6 @@ class Custom_Dataset(Dataset):
             it = random.randint(0,len(list_sentences2)-1)
             next_sentence = list_sentences2[it]
             is_next = False            
-
 
         token_ids_sentence1 = self.tokenizer.encode(sentence)
         token_ids_sentence2 = self.tokenizer.encode(next_sentence)
