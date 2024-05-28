@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 class EncoderLayer(nn.Module):
@@ -7,10 +8,10 @@ class EncoderLayer(nn.Module):
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_hidden_layers)
 
     def forward(self, hidden_states, attention_mask=None):
-        print(f'attention_mask: {attention_mask.shape}')
-        attention_mask = attention_mask != 0 
-        # if attention_mask is not None:
-        #     # Convert attention mask to the format expected by nn.TransformerEncoder
-        #     attention_mask = attention_mask.float().masked_fill(attention_mask == 0, float('-inf')).masked_fill(attention_mask == 1, float(0.0))
-        encoded_output = self.encoder(hidden_states, src_key_padding_mask=~attention_mask)
-        return encoded_output
+
+        attention_mask = attention_mask.to(dtype=torch.bool)
+        
+        encoder_output = self.encoder(hidden_states, src_key_padding_mask=attention_mask)
+        encoder_output = encoder_output
+
+        return encoder_output

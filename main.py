@@ -63,41 +63,38 @@ for epoch in range(3):  # Epochs
 
                 
                 # Forward pass
-                outputs = model(input_ids, attention_mask, segment_ids, masked_lm_labels, next_sentence_labels)
-                # loss, mlm_logits, nsp_logits = outputs
-                print(f'outputs: {outputs.shape}')
+                outputs = model(input_ids, attention_mask, segment_ids)
+                nsp_logits, mlm_logits = outputs
+                print(f'nsp_logits: {nsp_logits.shape}')
+                print(f'mlm_logits: {mlm_logits.shape}')
 
-               
 
-        #         # Print the logits and labels
-        #         print(f"MLM logits: {mlm_logits}")
-        #         print(f"Masked LM labels: {masked_lm_labels}")
+                # Calculate MLM loss separately
+                mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+                nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+                print("Loss components:")
+                print(f"  Masked LM Loss: {mlm_loss.item()}")
+                print(f"  Next Sentence Loss: {nsp_loss.item()}")
+                loss = mlm_loss + nsp_loss
+                print(f"  Total Loss: {loss.item()}")
 
-        #         # Calculate MLM loss separately
-        #         mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-        #         nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
-        #         print("Loss components:")
-        #         print(f"  Masked LM Loss: {mlm_loss.item()}")
-        #         print(f"  Next Sentence Loss: {nsp_loss.item()}")
-        #         print(f"  Total Loss: {loss.item()}")
+                # Check for NaN values in loss components
+                if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
+                    print("NaN detected in loss components")
+                    continue
 
-        #         # Check for NaN values in loss components
-        #         if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
-        #             print("NaN detected in loss components")
-        #             continue
+                # Normalize considering gradient accumulation
+                loss = loss / accumulation_steps
+                loss.backward()  # Backpropagate
 
-        #         # Normalize considering gradient accumulation
-        #         loss = loss / accumulation_steps
-        #         loss.backward()  # Backpropagate
+                if (step * len(sentences) + i // 2 + 1) % accumulation_steps == 0:
+                    optimizer.step()
+                    optimizer.zero_grad()  # Reset gradients
 
-        #         if (step * len(sentences) + i // 2 + 1) % accumulation_steps == 0:
-        #             optimizer.step()
-        #             optimizer.zero_grad()  # Reset gradients
+                    # Print loss for monitoring
+                    print(f"Epoch {epoch}, Step {step * len(sentences) + i // 2}, Loss: {loss.item()}")
 
-        #             # Print loss for monitoring
-        #             print(f"Epoch {epoch}, Step {step * len(sentences) + i // 2}, Loss: {loss.item()}")
-
-        # # Update weights at the end of training
-        # if (step * len(sentences) + i // 2 + 1) % accumulation_steps != 0:
-        #     optimizer.step()  # Final optimizer step to update model parameters
-        #     optimizer.zero_grad()
+        # Update weights at the end of training
+        if (step * len(sentences) + i // 2 + 1) % accumulation_steps != 0:
+            optimizer.step()  # Final optimizer step to update model parameters
+            optimizer.zero_grad()

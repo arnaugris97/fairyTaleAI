@@ -42,7 +42,7 @@ class EmbeddingLayer(nn.Module):
         position_embeddings = self.position_embeddings(token_embeddings)
         segment_embeddings = self.segment_embeddings(segment_ids)
         
-        embeddings = token_embeddings + position_embeddings + segment_embeddings
+        embeddings = token_embeddings.transpose(0, 1) + position_embeddings.transpose(0,1) + segment_embeddings
         embeddings = self.layer_norm(embeddings)
         embeddings = self.dropout(embeddings)
 
