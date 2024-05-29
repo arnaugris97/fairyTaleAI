@@ -20,7 +20,7 @@ tokenizer = WordPieceTokenizer()
 tokenizer.load('tokenizer/wordPieceVocab.json')
 
 # Initialize BERT model
-model = BERT(vocab_size=tokenizer.vocab_size, max_seq_len=512, hidden_size=768, segment_vocab_size=2, num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+model = BERT(vocab_size=tokenizer.vocab_size, max_seq_len=512, hidden_size=768, segment_vocab_size=2, num_hidden_layers=2, num_attention_heads=2, intermediate_size=3072)
 model.to(device)
 
 # Initialize optimizer

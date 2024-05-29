@@ -42,7 +42,7 @@ class Custom_Dataset(Dataset):
 
         if random.random()<0.5:
             next_sentence = list_sentences[it+1]
-            is_next = True
+            is_next = 1
 
         else:
             idx2 = idx
@@ -54,14 +54,14 @@ class Custom_Dataset(Dataset):
 
             it = random.randint(0,len(list_sentences2)-1)
             next_sentence = list_sentences2[it]
-            is_next = False            
+            is_next = 0            
 
         token_ids_sentence1 = self.tokenizer.encode(sentence)
         token_ids_sentence2 = self.tokenizer.encode(next_sentence)
         input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
         masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
     
-        return title, torch.tensor(masked_input_ids).unsqueeze(0), torch.tensor(attention_mask).unsqueeze(0), torch.tensor(segment_ids).unsqueeze(0), [is_next, labels]
+        return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
     
     # HE LLEGIT EN EL LINK DE BAIX QUE FAN EL BATCH A TEXT LEVEL. LLAVORS RECORREN CADA PARÀGRAF DEL TEXT I RETORNEN UNA PARELLA DE
     # PARÀGRAF+NEXT_SENTENCE PER CADA UN DELS PARÀGRAFS. AQUESTA IMPLEMENTACIÓ ÉS STRAIGHTFORWARD AMB UN BUCLE, PERÒ NO HO IMPLEMENTO
