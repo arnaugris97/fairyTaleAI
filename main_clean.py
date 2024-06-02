@@ -6,6 +6,7 @@ import pandas as pd
 import torch
 from numpy.random import RandomState
 from sklearn.model_selection import train_test_split
+from tensorboard_logger import TensorBoardLogger
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -41,8 +42,15 @@ loss_fct = torch.nn.CrossEntropyLoss()
 epochs = 1
 accumulation_steps = 3
 
+# Initialize TensorBoard Logger
+logger = TensorBoardLogger()
+
 for epoch in range(epochs):
     model.train()
+    running_loss = 0.0
+    total_steps = len(train_dataloader)
+    optimizer.zero_grad()
+
     for step,data in enumerate(train_dataloader):
         title,input_ids,attention_mask,segment_ids,next_sentence_labels,masked_lm_labels = data[0],data[1],data[2],data[3].to(device),data[4].to(device),data[5].to(device)
 
@@ -54,10 +62,13 @@ for epoch in range(epochs):
     
         mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
         nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+        
         print("Loss components:")
         print(f"  Masked LM Loss: {mlm_loss.item()}")
         print(f"  Next Sentence Loss: {nsp_loss.item()}")
+        
         loss = mlm_loss + nsp_loss
+        
         print(f"  Total Loss: {loss.item()}")
 
         # Check for NaN values in loss components
@@ -66,26 +77,50 @@ for epoch in range(epochs):
             continue
 
         # Normalize considering gradient accumulation
-        loss = loss / accumulation_steps
         loss.backward()  # Backpropagate
 
-        # Print loss for monitoring
-        print(f"Epoch {epoch}, Step {step}, Loss: {loss.item()}")
+        #Save loss progress in log
+        running_loss += loss.item()
+        if step % 10 == 0:
+            print(f"Epoch {epoch}, Step {step}, Loss: {loss.item()}")
+            logger.log_training_loss(loss.item(), epoch, step, total_steps)
 
         # Update weights at the end of training
         if step % accumulation_steps == 0:
             optimizer.step()  
             optimizer.zero_grad()
             
+    # After each epoch, log the average loss
+    epoch_loss = running_loss / total_steps
+    logger.log_average_training_loss(epoch_loss, epoch)
+    print(f"Epoch {epoch}, Average Loss: {epoch_loss}")
+    
     optimizer.step()  
     optimizer.zero_grad()
-    model.eval()
-    for step,data in enumerate(val_dataloader):
-        title,input_ids,attention_mask,segment_ids,next_sentence_labels,masked_lm_labels = data[0],data[1],data[2],data[3].to(device),data[4].to(device),data[5].to(device)
 
-        if input_ids.shape[1] > 512:
-            continue
-        outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device)) #Hauria de retornar dos tensors
-        nsp_logits, mlm_logits = outputs
+    # Validation Step
+    model.eval()
+    val_loss = 0.0
+
+    with torch.no_grad():
+        for step,data in enumerate(val_dataloader):
+            title,input_ids,attention_mask,segment_ids,next_sentence_labels,masked_lm_labels = data[0],data[1],data[2],data[3].to(device),data[4].to(device),data[5].to(device)
+
+            if input_ids.shape[1] > 512:
+                continue
+            outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device)) #Hauria de retornar dos tensors
+            nsp_logits, mlm_logits = outputs
+
+            mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+            nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+            loss = mlm_loss + nsp_loss
+            val_loss += loss.item()
+
+        avg_val_loss = val_loss / len(val_dataloader)
+        logger.log_validation_loss(avg_val_loss, epoch)
+        print(f"Validation Loss: {avg_val_loss}")
+
+# Close the TensorBoard logger
+logger.close()
 
         ## ADD METRICS (ACCURACY,PREC@k)
