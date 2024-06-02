@@ -5,6 +5,7 @@ from tokenizer.wordPieceTokenizer import WordPieceTokenizer, mask_tokens
 import pandas as pd
 import torch
 from numpy.random import RandomState
+from sklearn.model_selection import train_test_split
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -13,15 +14,15 @@ tokenizer = WordPieceTokenizer()
 tokenizer.load('tokenizer/wordPieceVocab.json')
 
 seed = RandomState()
-train_frac = 0.6
-test_frac = 0.2
-val_frac = 0.2
+# Define the number of samples for test and validation sets
+sentences_test = 0.2
+sentences_val = 0.2
 
-train_val = dataset_csv.sample(frac=train_frac+val_frac, random_state=seed)
-test = dataset_csv.loc[~dataset_csv.index.isin(train_val.index)]
+# Split the dataset into train+val and test
+train_val, test = train_test_split(dataset_csv, test_size=sentences_test, random_state=seed)
 
-train = train_val.sample(frac=train_frac/(train_frac+val_frac), random_state=seed)
-val = train_val.loc[~train_val.index.isin(train.index)]
+# Further split train+val into train and validation sets
+train, val = train_test_split(train_val, test_size=sentences_val, random_state=seed)
 
 train_dataset = Custom_Dataset(train, 2,tokenizer)
 test_dataset = Custom_Dataset(test, 2,tokenizer)
