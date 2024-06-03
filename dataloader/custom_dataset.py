@@ -30,37 +30,42 @@ class Custom_Dataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        
-        title = self.dataset.iloc[idx]['Title']
-        text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
-        list_sentences = [''.join(map(str, text[i:i+self.sentences])) for i in range(0, len(text), self.sentences)]
-        # First approach: for each batch, take one random sentence from each story.
-        # The next sentence (own text or another) is defined randomly.
+        ##### CANVIAR PART DEL WHILE ####
+        count = False
+        while count == False:
+            title = self.dataset.iloc[idx]['Title']
+            text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
+            list_sentences = [''.join(map(str, text[i:i+self.sentences])) for i in range(0, len(text), self.sentences)]
+            # First approach: for each batch, take one random sentence from each story.
+            # The next sentence (own text or another) is defined randomly.
 
-        it = random.randint(0,len(list_sentences)-2)
-        sentence = list_sentences[it]
+            it = random.randint(0,len(list_sentences)-2)
+            sentence = list_sentences[it]
 
-        if random.random()<0.5:
-            next_sentence = list_sentences[it+1]
-            is_next = 1
+            if random.random()<0.5:
+                next_sentence = list_sentences[it+1]
+                is_next = 1
 
-        else:
-            idx2 = idx
-            while idx2 == idx:
-                idx2 = random.randint(0,len(self.dataset)-1)
+            else:
+                idx2 = idx
+                while idx2 == idx:
+                    idx2 = random.randint(0,len(self.dataset)-1)
 
-            text2 = separate_sentences(self.dataset.iloc[idx2]['cleaned_story'])
-            list_sentences2 = [''.join(map(str, text2[i:i+self.sentences])) for i in range(0, len(text2), self.sentences)]
+                text2 = separate_sentences(self.dataset.iloc[idx2]['cleaned_story'])
+                list_sentences2 = [''.join(map(str, text2[i:i+self.sentences])) for i in range(0, len(text2), self.sentences)]
 
-            it = random.randint(0,len(list_sentences2)-1)
-            next_sentence = list_sentences2[it]
-            is_next = 0            
+                it = random.randint(0,len(list_sentences2)-1)
+                next_sentence = list_sentences2[it]
+                is_next = 0            
 
-        token_ids_sentence1 = self.tokenizer.encode(sentence)
-        token_ids_sentence2 = self.tokenizer.encode(next_sentence)
-        input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
-        masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
-    
+            token_ids_sentence1 = self.tokenizer.encode(sentence)
+            token_ids_sentence2 = self.tokenizer.encode(next_sentence)
+            input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
+            masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
+
+            if masked_input_ids.shape[1] < 512:
+                count = True
+                
         return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
     
     # HE LLEGIT EN EL LINK DE BAIX QUE FAN EL BATCH A TEXT LEVEL. LLAVORS RECORREN CADA PARÀGRAF DEL TEXT I RETORNEN UNA PARELLA DE
