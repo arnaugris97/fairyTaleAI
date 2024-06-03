@@ -120,7 +120,7 @@ def train_model(config):
 
     model = BERT(vocab_size=tokenizer.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
                  segment_vocab_size=2, num_hidden_layers=config['BERT_num_hidden_layers'], 
-                 num_attention_heads=config['BERT_att_heads'], intermediate_size=4*config['BERT_hidden_size'])
+                 num_attention_heads=config['BERT_att_heads'], intermediate_size=4*config['BERT_hidden_size'], batch_size=config['batch_size'])
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=config['lr'])

@@ -1,8 +1,9 @@
 import json
 import random
 import re
-import urllib.request
 from collections import defaultdict, Counter
+
+import pandas as pd
 
 class WordPieceTokenizer():
     def __init__(self, vocab_size=10000):
@@ -298,27 +299,20 @@ def load_separate_and_clean_stories(filename):
 
 # TRAIN THE TOKENIZER
 # Load the text to train the tokenizer
-# url = 'https://www.gutenberg.org/files/1342/1342-0.txt'
-# with urllib.request.urlopen(url) as response:
-#     # Read the response content
-#     data = response.read()
+# dataset_csv = pd.read_csv('dataset/merged_stories_full.csv')
 
-#     # Decode the bytes to string using utf-8 encoding
-#     text = data.decode('utf-8')
+# # Concat all the stories from the dataset on the colum 'Title' and 'cleaned_story'
+# text = ' '.join(dataset_csv['cleaned_story'])
 
-# start = text.find('Chapter I.]')
-# end = text.rfind('END OF THE PROJECT GUTENBERG EBOOK')
-# text = text[start:end]
-
-# filename = "dataset/merged_clean.txt"
-# dataset = load_separate_and_clean_stories(filename)
 
 # # Train the tokenizer
 # tokenizer = WordPieceTokenizer(10000)
-# tokenizer.fit(dataset[0])
+# tokenizer.fit(text)
 
 # # Save the tokenizer
 # tokenizer.save('tokenizer/wordPieceVocab.json')
+
+# print(tokenizer.vocab_size)
 
 
 # USE THE TOKENIZER
