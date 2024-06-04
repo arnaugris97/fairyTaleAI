@@ -44,6 +44,9 @@ def training_step(model,optimizer,train_dataloader,device,accumulation_steps):
         nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
         loss = mlm_loss + nsp_loss
 
+        print(f"Step {step}, Loss: {loss.item()}")
+
+
         # Check for NaN values in loss components
         if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
             print("NaN detected in loss components")
@@ -99,7 +102,7 @@ def train_model(config):
     tokenizer = WordPieceTokenizer()
     tokenizer.load(config["path_tokenizer"])
 
-    seed = RandomState()
+    seed = RandomState(123)
     train_frac = 0.6
     test_frac = 0.2
     val_frac = 0.2
@@ -158,17 +161,17 @@ def train_model(config):
 if __name__ == "__main__":
 
     config = {
-        "lr": 5e-4,
-        "batch_size": 1,
-        "epochs": 3,
+        "lr": 1e-4,
+        "batch_size": 64,
+        "epochs": 10,
         "accumulation_steps": 5,
         "stopper_patience": 5,
         "path_dataset": "dataset/merged_stories_full.csv",
         "path_savedir": "Checkpoints/checkpoint.pt",
         "path_tokenizer": 'tokenizer/wordPieceVocab.json',
         "BERT_hidden_size": 256,
-        "BERT_num_hidden_layers":1,
-        "BERT_att_heads":1,
+        "BERT_num_hidden_layers":4,
+        "BERT_att_heads":4,
     }
 
     train_model(config)
