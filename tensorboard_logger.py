@@ -1,8 +1,15 @@
 from torch.utils.tensorboard import SummaryWriter
+import os
+from datetime import datetime
 
 class TensorBoardLogger:
-    def __init__(self, log_dir='runs/bert_experiment'):
+    def __init__(self, base_log_dir='runs/bert_experiment'):
+        log_dir = self._get_log_dir(base_log_dir)
         self.writer = SummaryWriter(log_dir)
+
+    def _get_log_dir(self, base_log_dir):
+        current_time = datetime.now().strftime('%Y%m%d-%H%M%S')
+        return os.path.join(base_log_dir, current_time)
 
     def log_training_loss(self, loss, epoch, step, total_steps):
         self.writer.add_scalar('Training Loss', loss, epoch * total_steps + step)

@@ -107,6 +107,7 @@ def validation_step(model, val_dataloader, device, logger, epoch):
 def train_model(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     savedir = config["path_savedir"]
+    logger = TensorBoardLogger()
 
     # Read the dataset
     dataset_csv = pd.read_csv(config["path_dataset"])
@@ -139,7 +140,6 @@ def train_model(config):
     optimizer = AdamW(model.parameters(), lr=config['lr'])
 
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
-    logger = TensorBoardLogger()
 
     for epoch in range(config['epochs']):
         model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch)
