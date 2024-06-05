@@ -1,5 +1,6 @@
 # train_utils.py
 import torch
+from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -7,7 +8,9 @@ from tensorboard_logger import TensorBoardLogger
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT
 from dataloader.custom_dataset import Custom_Dataset
-from transformers import AdamW
+from torch.optim import AdamW
+from numpy.random import RandomState
+
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -30,12 +33,13 @@ class EarlyStopper:
 def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch):
     model.train()
     total_loss = 0
+   
     total_steps = len(train_dataloader)
+   
     for step, data in enumerate(train_dataloader):
         title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
 
-        if input_ids.shape[1] > 512:
-            print(title, str(input_ids.shape[1]))
+        if input_ids.size(1) != 512:
             continue
 
         outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
@@ -45,14 +49,18 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
         nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
         loss = mlm_loss + nsp_loss
 
-        print(f"Step {step}, Loss: {loss.item()}")
         total_loss += loss.item()
+        print(f"Epoch {epoch}, Training Step {step}, Loss: {loss.item()}")
 
         if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
             print("NaN detected in loss components")
             continue
 
         loss.backward()
+
+        # Clip the gradients to prevent them from exploding
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
 
         if step % accumulation_steps == 0:
             optimizer.step()
@@ -80,9 +88,9 @@ def validation_step(model, val_dataloader, device, logger, epoch):
         for step, data in enumerate(val_dataloader):
             title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
 
-            if input_ids.shape[1] > 512:
-                print(title, str(input_ids.shape[1]))
+            if input_ids.size(1) != 512:
                 continue
+
 
             outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
             nsp_logits, mlm_logits = outputs
@@ -92,6 +100,8 @@ def validation_step(model, val_dataloader, device, logger, epoch):
 
             loss = mlm_loss + nsp_loss
             total_loss += loss.item()
+            print(f"Epoch {epoch}, Validation Step {step}, Loss: {loss.item()}")
+
 
             p_nsp = torch.max(nsp_logits, 1)[1]
             predicted_nsp += p_nsp.tolist()
@@ -128,9 +138,9 @@ def train_model(config):
     test_dataset = Custom_Dataset(test, 2, tokenizer)
     val_dataset = Custom_Dataset(val, 2, tokenizer)
 
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=1, shuffle=False)
+    train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
     model = BERT(vocab_size=tokenizer.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
                  segment_vocab_size=2, num_hidden_layers=config['BERT_num_hidden_layers'],

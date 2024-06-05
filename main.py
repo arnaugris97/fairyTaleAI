@@ -3,9 +3,9 @@ from train_utils import train_model
 
 if __name__ == "__main__":
     config = {
-        "lr": 1e-4,
+        "lr": 1e-3,
         "batch_size": 64,
-        "epochs": 10,
+        "epochs": 20,
         "accumulation_steps": 5,
         "stopper_patience": 5,
         "path_dataset": "dataset/merged_stories_full.csv",

@@ -30,19 +30,22 @@ class Custom_Dataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
+        
         while True:
             title = self.dataset.iloc[idx]['Title']
             text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
             list_sentences = [''.join(map(str, text[i:i+self.sentences])) for i in range(0, len(text), self.sentences)]
             
+            
+            if len(list_sentences[-1]) == 0:
+                list_sentences.pop()
+
             if len(list_sentences) < 2:
                 idx = random.randint(0, len(self.dataset) - 1)
                 continue
 
-            if len(list_sentences[-1]) == 0:
-                list_sentences.pop()
-
             it = random.randint(0, len(list_sentences) - 2)
+
             sentence = list_sentences[it]
 
             if random.random() < 0.5:
@@ -74,4 +77,4 @@ class Custom_Dataset(Dataset):
             if len(masked_input_ids) == 512:
                 break
 
-        return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
+        return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels), sentence, next_sentence
