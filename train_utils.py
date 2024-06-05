@@ -37,7 +37,8 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
     total_steps = len(train_dataloader)
    
     for step, data in enumerate(train_dataloader):
-        title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
+        title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels, sentence, next_sentence = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device), data[6], data[7]
+        next_sentence_labels = next_sentence_labels.float()
 
         if input_ids.size(1) != 512:
             continue
@@ -45,14 +46,20 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
         outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
         nsp_logits, mlm_logits = outputs
         mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-        nsp_loss = nsp_loss_fn(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
-        loss = mlm_loss + nsp_loss
+        
+        nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels)
+
+        # Example: Adjusting loss weights
+        mlm_weight = 0.1
+        nsp_weight = 0.9
+        loss = mlm_loss * mlm_weight + nsp_loss * nsp_weight
 
         total_loss += loss.item()
         print(f"Epoch {epoch}, Training Step {step}, Loss: {loss.item()}")
 
         if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
-            print("NaN detected in loss components")
+            print("*************NaN detected in loss components")
+
             continue
 
         loss.backward()
@@ -85,7 +92,7 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     y_nsp = []
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
-            title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
+            title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels, sentence, next_sentence = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device), data[6], data[7]
 
             if input_ids.size(1) != 512:
                 continue
@@ -95,23 +102,28 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             nsp_logits, mlm_logits = outputs
 
             mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-            nsp_loss = nsp_loss_fn(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+            nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels.float())
 
             loss = mlm_loss + nsp_loss
             total_loss += loss.item()
             print(f"Epoch {epoch}, Validation Step {step}, Loss: {loss.item()}")
 
+            if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
+                print("*********NaN detected in loss components")
+
+                continue
 
             p_nsp = torch.max(nsp_logits, 1)[1]
             predicted_nsp += p_nsp.tolist()
             y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
+
 
     avg_loss = total_loss / len(val_dataloader)
     accuracy_val = accuracy_score(y_nsp, predicted_nsp)
 
     logger.log_validation_loss(avg_loss, epoch)
 
-    return avg_loss, accuracy_val
+    return avg_loss, accuracy_val, accurary_mlm
 
 def train_model(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -150,15 +162,15 @@ def train_model(config):
 
     # Initialize the loss functions
     mlm_loss_fn = torch.nn.CrossEntropyLoss()
-    nsp_loss_fn = torch.nn.CrossEntropyLoss()
+    nsp_loss_fn = torch.nn.BCEWithLogitsLoss()
 
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
         model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn)
-        loss_val, accuracy_val = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn)
+        loss_val, accuracy_val, mlm_acc = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn)
 
-        print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val}")
+        print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val}, ACC MLM Loss: {mlm_acc}")
 
         if epoch == 0:
             checkpoint_loss = loss_val
