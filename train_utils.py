@@ -30,7 +30,7 @@ class EarlyStopper:
                 return True
         return False
 
-def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch):
+def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn):
     model.train()
     total_loss = 0
    
@@ -44,9 +44,8 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
 
         outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
         nsp_logits, mlm_logits = outputs
-
-        mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-        nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+        mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+        nsp_loss = nsp_loss_fn(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
         loss = mlm_loss + nsp_loss
 
         total_loss += loss.item()
@@ -76,7 +75,7 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
 
     return model, avg_loss
 
-def validation_step(model, val_dataloader, device, logger, epoch):
+def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     model.eval()
@@ -95,8 +94,8 @@ def validation_step(model, val_dataloader, device, logger, epoch):
             outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
             nsp_logits, mlm_logits = outputs
 
-            mlm_loss = torch.nn.functional.cross_entropy(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-            nsp_loss = torch.nn.functional.cross_entropy(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
+            mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+            nsp_loss = nsp_loss_fn(nsp_logits.view(-1, 2), next_sentence_labels.view(-1))
 
             loss = mlm_loss + nsp_loss
             total_loss += loss.item()
@@ -149,11 +148,15 @@ def train_model(config):
 
     optimizer = AdamW(model.parameters(), lr=config['lr'])
 
+    # Initialize the loss functions
+    mlm_loss_fn = torch.nn.CrossEntropyLoss()
+    nsp_loss_fn = torch.nn.CrossEntropyLoss()
+
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch)
-        loss_val, accuracy_val = validation_step(model, val_dataloader, device, logger, epoch)
+        model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn)
+        loss_val, accuracy_val = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val}")
 
