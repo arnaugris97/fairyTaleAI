@@ -19,6 +19,12 @@ class TensorBoardLogger:
 
     def log_validation_loss(self, avg_loss, epoch):
         self.writer.add_scalar('Validation Loss', avg_loss, epoch)
+    
+    def log_validation_accuracy_nsp(self, accuracy, epoch):
+        self.writer.add_scalar('Validation Accuracy NSP', accuracy, epoch)
+    
+    def log_validation_accuracy_mlm(self, accuracy, epoch):
+        self.writer.add_scalar('Validation Accuracy MLM', accuracy, epoch)
 
     def close(self):
         self.writer.close()

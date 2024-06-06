@@ -48,7 +48,7 @@ class Custom_Dataset(Dataset):
 
             sentence = list_sentences[it]
 
-            if random.random() < 0.5:
+            if random.random() < 0.3:
                 next_sentence = list_sentences[it + 1]
                 is_next = 1
             else:
@@ -77,4 +77,4 @@ class Custom_Dataset(Dataset):
             if len(masked_input_ids) == 512 and (len(token_ids_sentence1) + len(token_ids_sentence2)) < 509:
                 break
 
-        return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels), sentence, next_sentence
+        return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)

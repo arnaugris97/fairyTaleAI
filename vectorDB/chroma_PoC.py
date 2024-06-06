@@ -20,6 +20,7 @@ example_embeddings = [np.random.rand(768).tolist() for _ in example_documents]
 collection.add(
     documents=example_documents,
     embeddings=example_embeddings,
+    metadatas={"title": "en"},
     ids=[f"id{i}" for i in range(len(example_documents))],
 )
 

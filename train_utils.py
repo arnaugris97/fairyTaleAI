@@ -9,7 +9,6 @@ from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT
 from dataloader.custom_dataset import Custom_Dataset
 from torch.optim import AdamW
-from numpy.random import RandomState
 
 
 class EarlyStopper:
@@ -30,14 +29,14 @@ class EarlyStopper:
                 return True
         return False
 
-def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn):
+def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
     total_loss = 0
    
     total_steps = len(train_dataloader)
    
     for step, data in enumerate(train_dataloader):
-        title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels, sentence, next_sentence = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device), data[6], data[7]
+        title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
         next_sentence_labels = next_sentence_labels.float()
 
         if input_ids.size(1) != 512:
@@ -49,10 +48,9 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
         
         nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels)
 
-        # Example: Adjusting loss weights
-        mlm_weight = 0.1
-        nsp_weight = 0.9
-        loss = mlm_loss * mlm_weight + nsp_loss * nsp_weight
+        print('mlm loss', mlm_loss.item())
+
+        loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
 
         total_loss += loss.item()
         print(f"Epoch {epoch}, Training Step {step}, Loss: {loss.item()}")
@@ -82,7 +80,7 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
 
     return model, avg_loss
 
-def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn):
+def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     model.eval()
@@ -90,9 +88,12 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     total_loss = 0
     predicted_nsp = []
     y_nsp = []
+    total_mlm_correct = 0
+    total_mlm_tokens = 0
+
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
-            title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels, sentence, next_sentence = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device), data[6], data[7]
+            title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
 
             if input_ids.size(1) != 512:
                 continue
@@ -104,7 +105,7 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
             nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels.float())
 
-            loss = mlm_loss + nsp_loss
+            loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
             total_loss += loss.item()
             print(f"Epoch {epoch}, Validation Step {step}, Loss: {loss.item()}")
 
@@ -117,13 +118,36 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             predicted_nsp += p_nsp.tolist()
             y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
 
+            # print('mlm logits', mlm_logits.shape)
+            # # MLM accuracy calculation
+            # masked_lm_labels_flat = masked_lm_labels.view(-1)
+            # print('masked labels flat', masked_lm_labels.shape)
+            # mlm_predictions_flat = mlm_logits.view(-1, mlm_logits.size(-1)).argmax(dim=1)
+            # print('mlm predictions flat', mlm_predictions_flat.shape)
+            
+            #  # Filter out the positions where masked_lm_labels_flat == -100
+            # mask = masked_lm_labels_flat != -100
+            # filtered_labels = masked_lm_labels_flat[mask]
+            # filtered_predictions = mlm_predictions_flat[mask]
+
+            # correct_predictions = (filtered_predictions == filtered_labels).sum().item()
+            # print('correct predictions', correct_predictions)
+
+            # total_mlm_correct += correct_predictions
+            # print('total mlm correct', total_mlm_correct)
+            # total_mlm_tokens += mask.sum().item()
+            # print('total mlm tokens', total_mlm_tokens)
+
 
     avg_loss = total_loss / len(val_dataloader)
-    accuracy_val = accuracy_score(y_nsp, predicted_nsp)
+    accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
+    accuracy_val_mlm = total_mlm_correct / total_mlm_tokens if total_mlm_tokens > 0 else 0
 
     logger.log_validation_loss(avg_loss, epoch)
+    logger.log_validation_accuracy_nsp(accuracy_val_nsp, epoch)
+    logger.log_validation_accuracy_mlm(accuracy_val_mlm, epoch) 
 
-    return avg_loss, accuracy_val, accurary_mlm
+    return avg_loss, accuracy_val_nsp, accuracy_val_mlm
 
 def train_model(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -167,10 +191,10 @@ def train_model(config):
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn)
-        loss_val, accuracy_val, mlm_acc = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn)
+        model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
 
-        print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val}, ACC MLM Loss: {mlm_acc}")
+        print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm}")
 
         if epoch == 0:
             checkpoint_loss = loss_val
@@ -184,7 +208,8 @@ def train_model(config):
                 "BERT_att_heads": config["BERT_att_heads"],
                 "Train_Loss": loss_train,
                 "Val_Loss": loss_val,
-                "Val_Acc": accuracy_val,
+                "Val_Acc_nsp": accuracy_val_nsp,
+                "Val_Acc_mlm": accuracy_val_mlm,
             }
             torch.save(checkpoint, savedir)
             checkpoint_loss = loss_val
