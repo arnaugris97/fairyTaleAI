@@ -9,7 +9,7 @@ from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT
 from dataloader.custom_dataset import Custom_Dataset
 from torch.optim import AdamW
-
+from transformers import get_inverse_sqrt_schedule
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -28,8 +28,25 @@ class EarlyStopper:
             if self.counter >= self.patience:
                 return True
         return False
+    
+def accuracy_mlm(preds,labels):
+    labels_flat = labels.view(-1) # Flatten labels
+    preds_flat = preds.view(-1, preds.size(-1)).argmax(dim=1) # Flatten predictions and get the token with maximum probability
+    
+    mask = preds_flat != -100 # these are the positions with a token which was previously masked 
+    filtered_labels = labels_flat[mask]
+    filtered_predictions = preds_flat[mask]
 
-def training_step(model, optimizer, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
+    return accuracy_score(filtered_labels,filtered_predictions)
+    # correct_predictions = (filtered_predictions == filtered_labels).sum().item()
+    # print('correct predictions', correct_predictions)
+
+    # total_mlm_correct += correct_predictions
+    # print('total mlm correct', total_mlm_correct)
+    # total_mlm_tokens += mask.sum().item()
+    # print('total mlm tokens', total_mlm_tokens)
+
+def training_step(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
     total_loss = 0
    
@@ -69,7 +86,7 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
         if step % accumulation_steps == 0:
             optimizer.step()
             optimizer.zero_grad()
-
+            scheduler.step()
         logger.log_training_loss(loss.item(), epoch, step, total_steps)
 
     avg_loss = total_loss / total_steps
@@ -77,6 +94,7 @@ def training_step(model, optimizer, train_dataloader, device, accumulation_steps
 
     optimizer.step()
     optimizer.zero_grad()
+    scheduler.step()
 
     return model, avg_loss
 
@@ -118,30 +136,31 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             predicted_nsp += p_nsp.tolist()
             y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
 
-            # print('mlm logits', mlm_logits.shape)
+
+            #print('mlm logits', mlm_logits.shape)
             # # MLM accuracy calculation
-            # masked_lm_labels_flat = masked_lm_labels.view(-1)
-            # print('masked labels flat', masked_lm_labels.shape)
-            # mlm_predictions_flat = mlm_logits.view(-1, mlm_logits.size(-1)).argmax(dim=1)
+            #masked_lm_labels_flat = masked_lm_labels.view(-1)
+            #print('masked labels flat', masked_lm_labels.shape)
+            #mlm_predictions_flat = mlm_logits.view(-1, mlm_logits.size(-1)).argmax(dim=1)
             # print('mlm predictions flat', mlm_predictions_flat.shape)
             
             #  # Filter out the positions where masked_lm_labels_flat == -100
-            # mask = masked_lm_labels_flat != -100
-            # filtered_labels = masked_lm_labels_flat[mask]
-            # filtered_predictions = mlm_predictions_flat[mask]
+            #mask = masked_lm_labels_flat != -100 # these are the positions with a mask token 
+            #filtered_labels = masked_lm_labels_flat[mask]
+            #filtered_predictions = mlm_predictions_flat[mask]
 
             # correct_predictions = (filtered_predictions == filtered_labels).sum().item()
             # print('correct predictions', correct_predictions)
 
             # total_mlm_correct += correct_predictions
             # print('total mlm correct', total_mlm_correct)
-            # total_mlm_tokens += mask.sum().item()
+            # total_mxslm_tokens += mask.sum().item()
             # print('total mlm tokens', total_mlm_tokens)
 
 
     avg_loss = total_loss / len(val_dataloader)
     accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
-    accuracy_val_mlm = total_mlm_correct / total_mlm_tokens if total_mlm_tokens > 0 else 0
+    accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
 
     logger.log_validation_loss(avg_loss, epoch)
     logger.log_validation_accuracy_nsp(accuracy_val_nsp, epoch)
@@ -183,7 +202,7 @@ def train_model(config):
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=config['lr'])
-
+    scheduler = get_inverse_sqrt_schedule(optimizer,config['num_warmup_steps'])
     # Initialize the loss functions
     mlm_loss_fn = torch.nn.CrossEntropyLoss()
     nsp_loss_fn = torch.nn.BCEWithLogitsLoss()
@@ -191,7 +210,7 @@ def train_model(config):
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_step(model, optimizer, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        model, loss_train = training_step(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
         loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm}")
@@ -217,5 +236,5 @@ def train_model(config):
         if early_stopper.early_stop(loss_val):
             print(' --- TRAINING STOPPED --- ')
             break
-
+    
     logger.close()

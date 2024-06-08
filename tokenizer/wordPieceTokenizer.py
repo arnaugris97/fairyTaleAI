@@ -263,6 +263,8 @@ class WordPieceTokenizer():
         return splits
 
 def mask_tokens(token_ids, tokenizer):
+    gt = token_ids.copy()
+
     # Mask 15% of the tokens
     masked_indices = set()
     # 15% of significant tokens, different to [CLS], [SEP], and [PAD]
@@ -278,7 +280,7 @@ def mask_tokens(token_ids, tokenizer):
         token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
         masked_indices.add(index)
     
-    labels = [-100 if i not in masked_indices else token_ids[i] for i in range(len(token_ids))]
+    labels = [-100 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
     return token_ids, labels
 
 
