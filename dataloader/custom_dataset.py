@@ -48,7 +48,7 @@ class Custom_Dataset(Dataset):
 
             sentence = list_sentences[it]
 
-            if random.random() < 0.3:
+            if random.random() < 0.5:
                 next_sentence = list_sentences[it + 1]
                 is_next = 1
             else:

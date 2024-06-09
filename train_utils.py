@@ -38,13 +38,6 @@ def accuracy_mlm(preds,labels):
     filtered_predictions = preds_flat[mask]
 
     return accuracy_score(filtered_labels,filtered_predictions)
-    # correct_predictions = (filtered_predictions == filtered_labels).sum().item()
-    # print('correct predictions', correct_predictions)
-
-    # total_mlm_correct += correct_predictions
-    # print('total mlm correct', total_mlm_correct)
-    # total_mlm_tokens += mask.sum().item()
-    # print('total mlm tokens', total_mlm_tokens)
 
 def training_step(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
@@ -65,9 +58,10 @@ def training_step(model, optimizer, scheduler, train_dataloader, device, accumul
         
         nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels)
 
-        print('mlm loss', mlm_loss.item())
+        print('MLM loss', mlm_loss.item())
+        print('NSP loss', nsp_loss.item())
 
-        loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
+        loss = mlm_loss + nsp_loss
 
         total_loss += loss.item()
         print(f"Epoch {epoch}, Training Step {step}, Loss: {loss.item()}")
@@ -106,8 +100,6 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     total_loss = 0
     predicted_nsp = []
     y_nsp = []
-    total_mlm_correct = 0
-    total_mlm_tokens = 0
 
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
@@ -123,8 +115,10 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
             nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels.float())
 
-            loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
+            loss = mlm_loss + nsp_loss
             total_loss += loss.item()
+            print('MLM loss', mlm_loss.item())
+            print('NSP loss', nsp_loss.item())
             print(f"Epoch {epoch}, Validation Step {step}, Loss: {loss.item()}")
 
             if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
@@ -135,27 +129,6 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             p_nsp = torch.max(nsp_logits, 1)[1]
             predicted_nsp += p_nsp.tolist()
             y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
-
-
-            #print('mlm logits', mlm_logits.shape)
-            # # MLM accuracy calculation
-            #masked_lm_labels_flat = masked_lm_labels.view(-1)
-            #print('masked labels flat', masked_lm_labels.shape)
-            #mlm_predictions_flat = mlm_logits.view(-1, mlm_logits.size(-1)).argmax(dim=1)
-            # print('mlm predictions flat', mlm_predictions_flat.shape)
-            
-            #  # Filter out the positions where masked_lm_labels_flat == -100
-            #mask = masked_lm_labels_flat != -100 # these are the positions with a mask token 
-            #filtered_labels = masked_lm_labels_flat[mask]
-            #filtered_predictions = mlm_predictions_flat[mask]
-
-            # correct_predictions = (filtered_predictions == filtered_labels).sum().item()
-            # print('correct predictions', correct_predictions)
-
-            # total_mlm_correct += correct_predictions
-            # print('total mlm correct', total_mlm_correct)
-            # total_mxslm_tokens += mask.sum().item()
-            # print('total mlm tokens', total_mlm_tokens)
 
 
     avg_loss = total_loss / len(val_dataloader)
