@@ -2,7 +2,7 @@ from inference_utils import load_model, preprocess_input, generate_embeddings, s
 import chromadb
 
 if __name__ == "__main__":
-    model_path = 'Checkpoints/checkpoint.pt'
+    model_path = 'Checkpoints/checkpoint20Epochs.pt'
     tokenizer_path = 'tokenizer/wordPieceVocab.json'
     
     # Load the model and tokenizer

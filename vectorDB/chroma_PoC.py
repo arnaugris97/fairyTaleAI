@@ -20,12 +20,11 @@ example_embeddings = [np.random.rand(768).tolist() for _ in example_documents]
 collection.add(
     documents=example_documents,
     embeddings=example_embeddings,
-    metadatas={"title": "en"},
     ids=[f"id{i}" for i in range(len(example_documents))],
 )
 
 # Query with a new embedding
-results = collection.query(query_embeddings=[example_embeddings[0]], n_results=1, include=["embeddings"])
+results = collection.query(query_embeddings=[example_embeddings[0]], n_results=2)
 
 # Retrieve the corresponding texts
 print(f'ids: ',results["ids"])

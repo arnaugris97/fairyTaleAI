@@ -2,6 +2,7 @@ import json
 import random
 import re
 from collections import defaultdict, Counter
+from transformers import BertTokenizer
 
 import pandas as pd
 
@@ -135,15 +136,23 @@ class WordPieceTokenizer():
         return subwords
     
     def add_special_tokens(self, token_ids1, token_ids2, max_length=60):
-        tokens_with_special_tokens  = [self.word2idx[self.cls_token]] + token_ids1 + [self.word2idx[self.sep_token]] + token_ids2 + [self.word2idx[self.sep_token]]
+        tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+
+        cls_token_id = tokenizer1.cls_token_id
+        sep_token_id = tokenizer1.sep_token_id
+        pad_token_id = tokenizer1.pad_token_id
+    
+        # tokens_with_special_tokens  = [self.word2idx[self.cls_token]] + token_ids1 + [self.word2idx[self.sep_token]] + token_ids2 + [self.word2idx[self.sep_token]]
+        tokens_with_special_tokens  = [cls_token_id] + token_ids1 + [sep_token_id] + token_ids2 + [sep_token_id]
         # Create attention mask
         attention_mask = [1] * len(tokens_with_special_tokens)
 
         # Create token segment type ids
-        token_type_ids = [0] * (len(token_ids1) + 2) + [1] * (len(token_ids2) + 1)
+        token_type_ids = [1] * (len(token_ids1) + 2) + [2] * (len(token_ids2) + 1)
         
 
-        padded_token_ids = tokens_with_special_tokens + [self.word2idx[self.pad_token]] * (max_length - len(tokens_with_special_tokens))
+        # padded_token_ids = tokens_with_special_tokens + [self.word2idx[self.pad_token]] * (max_length - len(tokens_with_special_tokens))
+        padded_token_ids = tokens_with_special_tokens + [pad_token_id] * (max_length - len(tokens_with_special_tokens))
         attention_mask = attention_mask + [0] * (max_length - len(attention_mask))
         token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
         
@@ -263,21 +272,30 @@ class WordPieceTokenizer():
         return splits
 
 def mask_tokens(token_ids, tokenizer):
+
+    tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+    cls_token_id = tokenizer1.cls_token_id
+    sep_token_id = tokenizer1.sep_token_id
+    pad_token_id = tokenizer1.pad_token_id
+    mask_token_id = tokenizer1.mask_token_id
     gt = token_ids.copy()
 
     # Mask 15% of the tokens
     masked_indices = set()
     # 15% of significant tokens, different to [CLS], [SEP], and [PAD]
-    significant_tokens = [token for token in token_ids if token not in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]]
+    # significant_tokens = [token for token in token_ids if token not in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]]
+    significant_tokens = [token for token in token_ids if token not in [cls_token_id, sep_token_id, pad_token_id]]
     num_masked = max(1, int(len(significant_tokens) * 0.15))
     while len(masked_indices) < num_masked:
         index = random.randint(1, len(token_ids) - 2)
         if index in masked_indices:
             continue
         token = token_ids[index]
-        if token in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]:
+        # if token in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]:
+        if token in [cls_token_id, sep_token_id, pad_token_id]:
             continue
-        token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
+        # token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
+        token_ids[index] = mask_token_id
         masked_indices.add(index)
     
     labels = [-100 if i not in masked_indices else gt[i] for i in range(len(token_ids))]

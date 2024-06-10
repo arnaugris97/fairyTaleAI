@@ -12,6 +12,7 @@ sentence = "I love to play football"
 tokens = tokenizer.tokenize(sentence)
 tokens = ['[CLS]'] + tokens + ['[SEP]']
 T=15
+print(tokenizer.vocab_size)
 padded_tokens=tokens +['[PAD]' for _ in range(T-len(tokens))]
 print("Padded tokens are \n {} ".format(padded_tokens))
 attn_mask=[ 1 if token != '[PAD]' else 0 for token in padded_tokens  ]

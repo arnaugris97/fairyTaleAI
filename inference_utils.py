@@ -2,29 +2,29 @@
 import torch
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT
+from transformers import BertTokenizer
 
 def load_model(model_path, tokenizer_path):
     # Load the checkpoint
     checkpoint = torch.load(model_path)
-    
-    # Extract configuration parameters from the checkpoint
-    config = checkpoint["config"]  # Extract the configuration from the checkpoint
-    
+        
     # Initialize the tokenizer
-    tokenizer = WordPieceTokenizer()
-    tokenizer.load(tokenizer_path)
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    # tokenizer.load(tokenizer_path)
     
     # Initialize the model with the loaded configuration
     model = BERT(
         vocab_size=tokenizer.vocab_size,
         max_seq_len=512,
-        hidden_size=config['BERT_hidden_size'],
-        segment_vocab_size=config['segment_vocab_size'],
-        num_hidden_layers=config['BERT_num_hidden_layers'],
-        num_attention_heads=config['BERT_att_heads'],
-        intermediate_size=config['intermediate_size_multiplier'] * config['BERT_hidden_size'],
-        batch_size=64  # This can be a default value or loaded from the config if needed
+        hidden_size=checkpoint['BERT_hidden_size'],
+        segment_vocab_size= 3,
+        num_hidden_layers=checkpoint['BERT_num_hidden_layers'],
+        num_attention_heads=checkpoint['BERT_att_heads'],
+        intermediate_size=4 * checkpoint['BERT_hidden_size'],
+        batch_size=1  # This can be a default value or loaded from the config if needed
     )
+
+    print(model)
     
     # Load the model state
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -52,6 +52,7 @@ def preprocess_input(text, tokenizer, max_length=512):
 
 def generate_embeddings(inputs, model):
     with torch.no_grad():
+        # outputs = model.encode(model.embeddings(inputs['input_ids'], inputs['token_type_ids']))
         outputs = model(inputs['input_ids'], inputs['attention_mask'], inputs['token_type_ids'])
     embeddings = outputs[0].mean(dim=1)
     return embeddings

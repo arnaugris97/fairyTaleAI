@@ -10,6 +10,8 @@ from BERT.BERT_model import BERT
 from dataloader.custom_dataset import Custom_Dataset
 from torch.optim import AdamW
 from transformers import get_inverse_sqrt_schedule
+from transformers import BertTokenizer
+
 
 class EarlyStopper:
     def __init__(self, patience=1, min_delta=0):
@@ -169,9 +171,10 @@ def train_model(config):
     test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
     val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
-    model = BERT(vocab_size=tokenizer.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
-                 segment_vocab_size=2, num_hidden_layers=config['BERT_num_hidden_layers'],
-                 num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'], batch_size=config['batch_size'])
+    tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+    model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
+                 segment_vocab_size=3, num_hidden_layers=config['BERT_num_hidden_layers'],
+                 num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'])
     model.to(device)
 
     optimizer = AdamW(model.parameters(), lr=config['lr'])

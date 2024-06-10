@@ -3,6 +3,8 @@ import re
 import random
 from tokenizer.wordPieceTokenizer import mask_tokens
 import torch
+from transformers import BertTokenizer
+
 
 def separate_sentences(text):
     text = text.replace('...','#^')
@@ -20,16 +22,18 @@ def separate_sentences(text):
 
 class Custom_Dataset(Dataset):
 
-    def __init__(self, dataset, sentences, tokenizer):
+    def __init__(self, dataset, sentences, tokenizer1):
         super().__init__()
         self.dataset = dataset
         self.sentences = sentences
-        self.tokenizer = tokenizer
+        self.tokenizer1 = tokenizer1
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
+
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         
         while True:
             title = self.dataset.iloc[idx]['Title']
@@ -69,10 +73,13 @@ class Custom_Dataset(Dataset):
                 next_sentence = list_sentences2[it]
                 is_next = 0            
 
-            token_ids_sentence1 = self.tokenizer.encode(sentence)
-            token_ids_sentence2 = self.tokenizer.encode(next_sentence)
-            input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
-            masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
+            # token_ids_sentence1 = self.tokenizer.encode(sentence)
+            token_ids_sentence1 = tokenizer.encode(sentence, add_special_tokens=False)
+            # token_ids_sentence2 = self.tokenizer.encode(next_sentence)
+            token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
+            input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
+            masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
+            
 
             if len(masked_input_ids) == 512 and (len(token_ids_sentence1) + len(token_ids_sentence2)) < 509:
                 break

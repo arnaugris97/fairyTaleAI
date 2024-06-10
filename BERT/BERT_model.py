@@ -7,9 +7,9 @@ from BERT.encoder_layer import EncoderLayer
 
 
 class BERT(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, hidden_size, segment_vocab_size, num_hidden_layers, num_attention_heads, intermediate_size, batch_size, dropout_prob=0.1):
+    def __init__(self, vocab_size, max_seq_len, hidden_size, segment_vocab_size, num_hidden_layers, num_attention_heads, intermediate_size, dropout_prob=0.1):
         super(BERT, self).__init__()
-        self.embedding = EmbeddingLayer(vocab_size, max_seq_len, hidden_size, segment_vocab_size, batch_size)
+        self.embedding = EmbeddingLayer(vocab_size, max_seq_len, hidden_size, segment_vocab_size)
         self.encoder = EncoderLayer(hidden_size, num_attention_heads, intermediate_size, num_hidden_layers, dropout_prob)
         self.mlm_head = MLMHead(hidden_size, vocab_size)
         self.nsp_head = NSPHead(hidden_size)
