@@ -108,8 +108,8 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     model.eval()
 
     total_loss = 0
-    predicted_nsp = []
-    y_nsp = []
+    predicted_nsp = 0
+    y_nsp = 0
 
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
@@ -136,13 +136,19 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
 
                 continue
 
-            p_nsp = torch.max(nsp_logits, 1)[1]
-            predicted_nsp += p_nsp.tolist()
-            y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
+            #p_nsp = torch.max(nsp_logits, 1)[1]
+
+            m = torch.nn.Sigmoid()
+            nsp_class_pred = (m(nsp_logits)>=0.5).long()
+            correct = nsp_class_pred.eq(next_sentence_labels).sum().item()
+
+            predicted_nsp += correct
+            y_nsp += next_sentence_labels.nelement()
 
 
     avg_loss = total_loss / len(val_dataloader)
-    accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
+    accuracy_val_nsp = predicted_nsp / y_nsp
+    #accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
     accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
 
     logger.log_validation_loss(avg_loss, epoch)
