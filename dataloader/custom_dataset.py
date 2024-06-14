@@ -35,7 +35,7 @@
 
         
 
-#         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+#         tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         
 #         while True:
 #             title = self.dataset.iloc[idx]['Title']
@@ -115,7 +115,7 @@ class Custom_Dataset(Dataset):
         super().__init__()
         self.dataset = dataset
         self.tokenizer1 = tokenizer1
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
         
         # Combine exactly two sentences to form the single element of the dataset
         self.title, self.sentence, self.next_sentence, self.is_next = self._create_single_element()

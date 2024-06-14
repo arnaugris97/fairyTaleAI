@@ -32,14 +32,22 @@ class EarlyStopper:
         return False
     
 def accuracy_mlm(preds,labels):
-    labels_flat = labels.view(-1) # Flatten labels
-    preds_flat = preds.view(-1, preds.size(-1)).argmax(dim=1) # Flatten predictions and get the token with maximum probability
     
-    mask = preds_flat != -100 # these are the positions with a token which was previously masked 
+    labels_flat = labels.view(-1)
+    preds_flat = preds.view(-1, preds.size(-1)).argmax(dim=1)
+    
+    # Identify positions where labels are not 0 (masked positions)
+    mask = labels_flat != 0
+    
+    # Filter labels and predictions at masked positions
     filtered_labels = labels_flat[mask]
     filtered_predictions = preds_flat[mask]
+    
+    # Calculate accuracy
+    accuracy = accuracy_score(filtered_labels.cpu().numpy(), filtered_predictions.cpu().numpy())
+    
 
-    return accuracy_score(filtered_labels,filtered_predictions)
+    return accuracy
 
 def training_steps(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
@@ -172,7 +180,7 @@ def train_model(config):
     # test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
     # val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
-    tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
     model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
                  segment_vocab_size=3, num_hidden_layers=config['BERT_num_hidden_layers'],
                  num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'])

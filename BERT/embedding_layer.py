@@ -73,13 +73,13 @@ class EmbeddingLayer(nn.Module):
     def forward(self, input_ids, segment_ids):
         token_embeddings = self.token_embeddings(input_ids)
         # Transpose to [seq_len, batch_size, embedding_dim]
-        token_embeddings = token_embeddings.transpose(0, 1)
+        # token_embeddings = token_embeddings.transpose(0, 1)
 
         position_embeddings = self.position_embeddings(token_embeddings)
         segment_embeddings = self.segment_embeddings(segment_ids)
         
-        embeddings = token_embeddings.transpose(0, 1) + position_embeddings + segment_embeddings
-        embeddings = self.layer_norm(embeddings)
+        embeddings = token_embeddings + position_embeddings + segment_embeddings
+        # embeddings = self.layer_norm(embeddings)
         embeddings = self.dropout(embeddings)
 
         return embeddings
