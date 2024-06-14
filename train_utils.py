@@ -41,7 +41,7 @@ def accuracy_mlm(preds,labels):
 
     return accuracy_score(filtered_labels,filtered_predictions)
 
-def training_step(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
+def training_steps(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
     total_loss = 0
    
@@ -163,13 +163,14 @@ def train_model(config):
     train_val, test = train_test_split(dataset_csv, test_size=test_size, random_state=random_state)
     train, val = train_test_split(train_val, test_size=val_size/(1-test_size), random_state=random_state)
 
-    train_dataset = Custom_Dataset(train, 2, tokenizer)
-    test_dataset = Custom_Dataset(test, 2, tokenizer)
-    val_dataset = Custom_Dataset(val, 2, tokenizer)
+    train_dataset = Custom_Dataset(train, tokenizer)
+    # train_dataset = Custom_Dataset(train, 2, tokenizer)
+    # test_dataset = Custom_Dataset(test, 2, tokenizer)
+    # val_dataset = Custom_Dataset(val, 2, tokenizer)
 
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    # test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    # val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
     tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
     model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
@@ -186,8 +187,8 @@ def train_model(config):
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_step(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
-        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        model, loss_train = training_steps(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, train_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm}")
 

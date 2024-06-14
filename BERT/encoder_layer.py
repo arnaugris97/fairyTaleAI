@@ -11,7 +11,6 @@ class EncoderLayer(nn.Module):
 
         attention_mask = attention_mask.to(dtype=torch.bool)
         
-        encoder_output = self.encoder(hidden_states, src_key_padding_mask=attention_mask)
-        encoder_output = encoder_output
+        encoder_output = self.encoder(hidden_states, src_key_padding_mask=attention_mask, is_causal=False)
 
         return encoder_output
