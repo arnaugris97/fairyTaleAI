@@ -142,7 +142,6 @@ class Custom_Dataset(Dataset):
         input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
         masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
 
-        
     
 
         return self.title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([self.is_next]), torch.tensor(labels)

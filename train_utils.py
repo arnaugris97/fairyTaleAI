@@ -4,11 +4,13 @@ from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+from Optimizer.scheduler_optim import ScheduledOptim
 from tensorboard_logger import TensorBoardLogger
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
-from BERT.BERT_model import BERT
+from BERT.BERT_model import BERT, BERTLM
 from dataloader.custom_dataset import Custom_Dataset
 from torch.optim import AdamW
+from torch.optim import Adam
 from transformers import get_inverse_sqrt_schedule
 from transformers import BertTokenizer
 
@@ -49,60 +51,102 @@ def accuracy_mlm(preds,labels):
 
     return accuracy
 
-def training_steps(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
+
+def calculate_mlm_accuracy(logits, labels):
+    """
+    Calculate the accuracy for the masked language modeling task.
+
+    Args:
+    logits (torch.Tensor): Logits from the model of shape (batch_size, sequence_length, vocab_size).
+    labels (torch.Tensor): Ground truth labels of shape (batch_size, sequence_length), 
+                           where labels are 0 for non-masked tokens.
+
+    Returns:
+    float: The accuracy of the MLM task.
+    """
+    # Step 1: Identify the positions of the masked tokens
+    mask_positions = labels != 0
+
+    # Step 2: Extract logits at the masked positions
+    masked_logits = logits[mask_positions]
+
+    # Step 3: Extract the true labels at the masked positions
+    masked_labels = labels[mask_positions]
+
+    # Step 4: Compute the predicted tokens by taking the argmax of the logits
+    predicted_tokens = masked_logits.argmax(dim=-1)
+
+    # Step 5: Calculate the number of correct predictions
+    correct_predictions = (predicted_tokens == masked_labels).sum().item()
+
+    # Step 6: Calculate the total number of masked tokens
+    total_masked_tokens = mask_positions.sum().item()
+
+    # Step 7: Calculate the accuracy
+    accuracy = correct_predictions / total_masked_tokens
+
+    return accuracy
+
+def training_steps(model, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, criterion, config):
     model.train()
     total_loss = 0
    
     total_steps = len(train_dataloader)
    
     for step, data in enumerate(train_dataloader):
-        title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
-        next_sentence_labels = next_sentence_labels.float()
+        title, input_ids, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[3].to(device), data[4].to(device), data[5].to(device)
 
         if input_ids.size(1) != 512:
             continue
 
-        outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
-        nsp_logits, mlm_logits = outputs
-        mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+        next_sent_output, mask_lm_output = model.forward(input_ids,segment_ids)
+        # outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device), input_ids_mask.to(device))
+        # nsp_logits, mlm_logits = outputs
+
+        # mlm_loss = mlm_loss_fn(filtered_preds, filtered_labels)
         
-        nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels)
+        # nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels)
+
+        nsp_loss = criterion(next_sent_output, next_sentence_labels.view(-1))
+        mlm_loss = criterion(mask_lm_output.transpose(1, 2), masked_lm_labels)
 
         print('MLM loss', mlm_loss.item())
         print('NSP loss', nsp_loss.item())
 
         loss = mlm_loss + nsp_loss
-
         total_loss += loss.item()
+
         print(f"Epoch {epoch}, Training Step {step}, Loss: {loss.item()}")
 
         if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
             print("*************NaN detected in loss components")
 
             continue
-
+        
+        scheduler.zero_grad()
         loss.backward()
+        scheduler.step_and_update_lr()
+        
 
         # Clip the gradients to prevent them from exploding
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-
-        if step % accumulation_steps == 0:
-            optimizer.step()
-            optimizer.zero_grad()
-            scheduler.step()
+        # if step % accumulation_steps == 0:
+        #     scheduler.zero_grad()
+        #     scheduler.step_and_update_lr()
+            
         logger.log_training_loss(loss.item(), epoch, step, total_steps)
 
+    
     avg_loss = total_loss / total_steps
     logger.log_average_training_loss(avg_loss, epoch)
 
-    optimizer.step()
-    optimizer.zero_grad()
-    scheduler.step()
+    scheduler.zero_grad()
+    scheduler.step_and_update_lr()
 
     return model, avg_loss
 
-def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
+def validation_step(model, val_dataloader, device, logger, epoch, criterion, config):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     model.eval()
@@ -111,24 +155,37 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     predicted_nsp = []
     y_nsp = []
 
+    avg_loss = 0.0
+    total_correct = 0
+    total_element = 0
+    mlm_accuracy = 0
+    total_mlm_elems = 0
+        
+
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
-            title, input_ids, attention_mask, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[2], data[3].to(device), data[4].to(device), data[5].to(device)
+            title, input_ids, segment_ids, next_sentence_labels, masked_lm_labels = data[0], data[1], data[3].to(device), data[4].to(device), data[5].to(device)
 
             if input_ids.size(1) != 512:
                 continue
 
+            next_sent_output, mask_lm_output = model.forward(input_ids,segment_ids)
 
-            outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device))
-            nsp_logits, mlm_logits = outputs
+            # outputs = model(input_ids.to(device), attention_mask.to(device), segment_ids.to(device), input_ids_mask.to(device))
+            # nsp_logits, mlm_logits = outputs
 
-            mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
-            nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels.float())
+            # mlm_loss = mlm_loss_fn(mlm_logits.view(-1, mlm_logits.size(-1)), masked_lm_labels.view(-1))
+            # nsp_loss = nsp_loss_fn(nsp_logits, next_sentence_labels.float())
 
-            loss = mlm_loss + nsp_loss
-            total_loss += loss.item()
+            nsp_loss = criterion(next_sent_output, next_sentence_labels.view(-1))
+            mlm_loss = criterion(mask_lm_output.transpose(1, 2), masked_lm_labels)
+
             print('MLM loss', mlm_loss.item())
             print('NSP loss', nsp_loss.item())
+            
+            loss = mlm_loss + nsp_loss
+            total_loss += loss.item()
+            
             print(f"Epoch {epoch}, Validation Step {step}, Loss: {loss.item()}")
 
             if torch.isnan(mlm_loss) or torch.isnan(nsp_loss):
@@ -136,18 +193,26 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
 
                 continue
 
-            p_nsp = torch.max(nsp_logits, 1)[1]
-            predicted_nsp += p_nsp.tolist()
-            y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
+            correct = next_sent_output.argmax(dim=-1).eq(next_sentence_labels).sum().item()
+            avg_loss += loss.item()
+            total_correct += correct
+            total_element += next_sentence_labels.nelement()
+            total_mlm_elems += 1
+            mlm_accuracy += accuracy_mlm(mask_lm_output, masked_lm_labels)
+            accuracy = calculate_mlm_accuracy(mask_lm_output, masked_lm_labels)
+            print(f"MLM Accuracy: {accuracy * 100:.2f}%")
+            logger.log_validation_accuracy_mlm(accuracy, epoch, step, len(val_dataloader)) 
+
+           
 
 
     avg_loss = total_loss / len(val_dataloader)
-    accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
-    accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
+    accuracy_val_nsp = total_correct * 100.0 / total_element
+    accuracy_val_mlm = 0
 
     logger.log_validation_loss(avg_loss, epoch)
     logger.log_validation_accuracy_nsp(accuracy_val_nsp, epoch)
-    logger.log_validation_accuracy_mlm(accuracy_val_mlm, epoch) 
+
 
     return avg_loss, accuracy_val_nsp, accuracy_val_mlm
 
@@ -181,22 +246,42 @@ def train_model(config):
     # val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
     tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
-    model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
-                 segment_vocab_size=3, num_hidden_layers=config['BERT_num_hidden_layers'],
-                 num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'])
+    bert_model = BERT(
+        vocab_size=tokenizer1.vocab_size,
+        d_model=config['BERT_hidden_size'],
+        n_layers=config['BERT_num_hidden_layers'],
+        heads=config['BERT_att_heads'],
+        dropout=config['dropout']
+        )
+
+    model = BERTLM(bert_model, tokenizer1.vocab_size)
+
+    
+    # model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
+    #              segment_vocab_size=3, num_hidden_layers=config['BERT_num_hidden_layers'],
+    #              num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'])
     model.to(device)
 
-    optimizer = AdamW(model.parameters(), lr=config['lr'])
-    scheduler = get_inverse_sqrt_schedule(optimizer,config['num_warmup_steps'])
+    # optimizer = AdamW(model.parameters(), lr=config['lr'])
+    # scheduler = get_inverse_sqrt_schedule(optimizer,config['num_warmup_steps'])
+
+    optimizer = Adam(model.parameters(), lr=config['lr'], betas=config['betas'], weight_decay=config['weight_decay'])
+    scheduler = ScheduledOptim(
+        optimizer, model.bert.d_model, n_warmup_steps=config['num_warmup_steps']
+        )
+    
+
     # Initialize the loss functions
     mlm_loss_fn = torch.nn.CrossEntropyLoss()
     nsp_loss_fn = torch.nn.BCEWithLogitsLoss()
 
+    criterion = torch.nn.NLLLoss(ignore_index=0)
+
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_steps(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
-        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, train_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        model, loss_train = training_steps(model,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, criterion, config)
+        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, train_dataloader, device, logger, epoch, criterion, config)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm}")
 

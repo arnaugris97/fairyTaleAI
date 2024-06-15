@@ -23,8 +23,8 @@ class TensorBoardLogger:
     def log_validation_accuracy_nsp(self, accuracy, epoch):
         self.writer.add_scalar('Validation Accuracy NSP', accuracy, epoch)
     
-    def log_validation_accuracy_mlm(self, accuracy, epoch):
-        self.writer.add_scalar('Validation Accuracy MLM', accuracy, epoch)
+    def log_validation_accuracy_mlm(self, accuracy,  epoch, step, total_steps):
+        self.writer.add_scalar('Validation Accuracy MLM', accuracy, epoch * total_steps + step)
 
     def close(self):
         self.writer.close()

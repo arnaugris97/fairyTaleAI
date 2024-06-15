@@ -18,8 +18,11 @@ if __name__ == "__main__":
         "BERT_hidden_size": 256,
         "BERT_num_hidden_layers": 4,
         "BERT_att_heads": 4,
+        "dropout": 0.1,
         "mlm_weight": 0.1,
-        "nsp_weight": 0.9
+        "nsp_weight": 0.9,
+        "weight_decay": 0.01,
+        "betas": (0.9, 0.999)
     }
 
     train_model(config)

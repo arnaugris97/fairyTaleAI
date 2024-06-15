@@ -2,6 +2,7 @@ import json
 import random
 import re
 from collections import defaultdict, Counter
+import torch
 from transformers import BertTokenizer
 
 import pandas as pd
@@ -145,7 +146,7 @@ class WordPieceTokenizer():
         # tokens_with_special_tokens  = [self.word2idx[self.cls_token]] + token_ids1 + [self.word2idx[self.sep_token]] + token_ids2 + [self.word2idx[self.sep_token]]
         tokens_with_special_tokens  = [cls_token_id] + token_ids1 + [sep_token_id] + token_ids2 + [sep_token_id]
         # Create attention mask
-        attention_mask = [1] * len(tokens_with_special_tokens)
+        attention_mask = [0] * len(tokens_with_special_tokens)
 
         # Create token segment type ids
         token_type_ids = [1] * (len(token_ids1) + 2) + [2] * (len(token_ids2) + 1)
@@ -153,7 +154,7 @@ class WordPieceTokenizer():
 
         # padded_token_ids = tokens_with_special_tokens + [self.word2idx[self.pad_token]] * (max_length - len(tokens_with_special_tokens))
         padded_token_ids = tokens_with_special_tokens + [pad_token_id] * (max_length - len(tokens_with_special_tokens))
-        attention_mask = attention_mask + [0] * (max_length - len(attention_mask))
+        attention_mask = attention_mask + [1] * (max_length - len(attention_mask))
         token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
         
         return padded_token_ids, attention_mask, token_type_ids
@@ -299,6 +300,8 @@ def mask_tokens(token_ids, tokenizer):
         masked_indices.add(index)
     
     labels = [0 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
+ 
+
     return token_ids, labels
 
 
