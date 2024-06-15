@@ -43,11 +43,15 @@ def accuracy_mlm(preds,labels):
     filtered_labels = labels_flat[mask]
     filtered_predictions = preds_flat[mask]
     
-    # Calculate accuracy
-    accuracy = accuracy_score(filtered_labels.cpu().numpy(), filtered_predictions.cpu().numpy())
-    
+    filtered_labels = filtered_predictions
 
-    return accuracy
+    # Calculate matches
+    correct_mlm = filtered_predictions.eq(filtered_labels).sum().item()
+    
+    print(filtered_labels)
+    print(filtered_predictions)
+
+    return correct_mlm, filtered_labels.nelement()
 
 def training_steps(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
@@ -108,8 +112,12 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     model.eval()
 
     total_loss = 0
+
     predicted_nsp = 0
     y_nsp = 0
+
+    predicted_mlm = 0
+    y_mlm = 0
 
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
@@ -145,11 +153,17 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
             predicted_nsp += correct
             y_nsp += next_sentence_labels.nelement()
 
+            correct_mlm, n_elements = accuracy_mlm(mlm_logits,masked_lm_labels)
+
+            predicted_mlm += correct_mlm
+            y_mlm += n_elements
 
     avg_loss = total_loss / len(val_dataloader)
     accuracy_val_nsp = predicted_nsp / y_nsp
     #accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
-    accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
+   #accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
+
+    accuracy_val_mlm = predicted_mlm / y_mlm
 
     logger.log_validation_loss(avg_loss, epoch)
     logger.log_validation_accuracy_nsp(accuracy_val_nsp, epoch)
