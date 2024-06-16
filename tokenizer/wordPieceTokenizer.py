@@ -280,7 +280,7 @@ def mask_tokens(token_ids, tokenizer):
     pad_token_id = tokenizer1.pad_token_id
     mask_token_id = tokenizer1.mask_token_id
     gt = token_ids.copy()
-
+    
     # Mask 15% of the tokens
     masked_indices = set()
     # 15% of significant tokens, different to [CLS], [SEP], and [PAD]

@@ -1,3 +1,4 @@
+import torch
 from BERT.MLM_head import MLMHead
 from BERT.NSP_head import NSPHead
 from BERT.embedding_layer import EmbeddingLayer
@@ -83,9 +84,13 @@ class NextSentencePrediction(nn.Module):
         self.linear = nn.Linear(hidden, 2)
         self.softmax = nn.LogSoftmax(dim=-1)
 
-    def forward(self, x):
+    def forward(self, input):
         # use only the first token which is the [CLS]
-        return self.softmax(self.linear(x[:, 0]))
+        x = input[:, 0]
+        x = self.linear(x)
+        x = self.softmax(x)
+        probabilities = torch.exp(x)
+        return x
 
 class MaskedLanguageModel(nn.Module):
     """
@@ -102,8 +107,10 @@ class MaskedLanguageModel(nn.Module):
         self.linear = nn.Linear(hidden, vocab_size)
         self.softmax = nn.LogSoftmax(dim=-1)
 
-    def forward(self, x):
-        return self.softmax(self.linear(x))
+    def forward(self, input):
+        x = self.linear(input)
+        x = self.softmax(x)
+        return x
 
 class BERTLM(nn.Module):
     """
@@ -124,4 +131,6 @@ class BERTLM(nn.Module):
 
     def forward(self, x, segment_label):
         x = self.bert(x, segment_label)
-        return self.next_sentence(x), self.mask_lm(x)
+        nsp_output = self.next_sentence(x)
+        mlm_output = self.mask_lm(x)
+        return nsp_output, mlm_output
