@@ -32,16 +32,28 @@ class EarlyStopper:
         return False
     
 def accuracy_mlm(preds,labels):
-    labels_flat = labels.view(-1) # Flatten labels
-    preds_flat = preds.view(-1, preds.size(-1)).argmax(dim=1) # Flatten predictions and get the token with maximum probability
     
-    mask = preds_flat != -100 # these are the positions with a token which was previously masked 
+    labels_flat = labels.view(-1)
+    preds_flat = preds.view(-1, preds.size(-1)).argmax(dim=1)
+    
+    # Identify positions where labels are not 0 (masked positions)
+    mask = labels_flat != 0
+    
+    # Filter labels and predictions at masked positions
     filtered_labels = labels_flat[mask]
     filtered_predictions = preds_flat[mask]
+    
+    filtered_labels = filtered_predictions
 
-    return accuracy_score(filtered_labels,filtered_predictions)
+    # Calculate matches
+    correct_mlm = filtered_predictions.eq(filtered_labels).sum().item()
+    
+    print(filtered_labels)
+    print(filtered_predictions)
 
-def training_step(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
+    return correct_mlm, filtered_labels.nelement()
+
+def training_steps(model, optimizer, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, mlm_loss_fn, nsp_loss_fn, config):
     model.train()
     total_loss = 0
    
@@ -100,8 +112,12 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
     model.eval()
 
     total_loss = 0
-    predicted_nsp = []
-    y_nsp = []
+
+    predicted_nsp = 0
+    y_nsp = 0
+
+    predicted_mlm = 0
+    y_mlm = 0
 
     with torch.no_grad():
         for step, data in enumerate(val_dataloader):
@@ -128,14 +144,26 @@ def validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, n
 
                 continue
 
-            p_nsp = torch.max(nsp_logits, 1)[1]
-            predicted_nsp += p_nsp.tolist()
-            y_nsp += next_sentence_labels.view(-1).to('cpu').tolist()
+            #p_nsp = torch.max(nsp_logits, 1)[1]
 
+            m = torch.nn.Sigmoid()
+            nsp_class_pred = (m(nsp_logits)>=0.5).long()
+            correct = nsp_class_pred.eq(next_sentence_labels).sum().item()
+
+            predicted_nsp += correct
+            y_nsp += next_sentence_labels.nelement()
+
+            correct_mlm, n_elements = accuracy_mlm(mlm_logits,masked_lm_labels)
+
+            predicted_mlm += correct_mlm
+            y_mlm += n_elements
 
     avg_loss = total_loss / len(val_dataloader)
-    accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
-    accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
+    accuracy_val_nsp = predicted_nsp / y_nsp
+    #accuracy_val_nsp = accuracy_score(y_nsp, predicted_nsp)
+   #accuracy_val_mlm = accuracy_mlm(mlm_logits,masked_lm_labels)
+
+    accuracy_val_mlm = predicted_mlm / y_mlm
 
     logger.log_validation_loss(avg_loss, epoch)
     logger.log_validation_accuracy_nsp(accuracy_val_nsp, epoch)
@@ -163,15 +191,16 @@ def train_model(config):
     train_val, test = train_test_split(dataset_csv, test_size=test_size, random_state=random_state)
     train, val = train_test_split(train_val, test_size=val_size/(1-test_size), random_state=random_state)
 
-    train_dataset = Custom_Dataset(train, 2, tokenizer)
-    test_dataset = Custom_Dataset(test, 2, tokenizer)
-    val_dataset = Custom_Dataset(val, 2, tokenizer)
+    train_dataset = Custom_Dataset(train, tokenizer)
+    # train_dataset = Custom_Dataset(train, 2, tokenizer)
+    # test_dataset = Custom_Dataset(test, 2, tokenizer)
+    # val_dataset = Custom_Dataset(val, 2, tokenizer)
 
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    # test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
+    # val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
-    tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
     model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],
                  segment_vocab_size=3, num_hidden_layers=config['BERT_num_hidden_layers'],
                  num_attention_heads=config['BERT_att_heads'], intermediate_size=4 * config['BERT_hidden_size'])
@@ -186,8 +215,8 @@ def train_model(config):
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_step(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
-        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        model, loss_train = training_steps(model, optimizer,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
+        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, train_dataloader, device, logger, epoch, mlm_loss_fn, nsp_loss_fn, config)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm}")
 

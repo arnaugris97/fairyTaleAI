@@ -136,7 +136,7 @@ class WordPieceTokenizer():
         return subwords
     
     def add_special_tokens(self, token_ids1, token_ids2, max_length=60):
-        tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+        tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
 
         cls_token_id = tokenizer1.cls_token_id
         sep_token_id = tokenizer1.sep_token_id
@@ -273,7 +273,7 @@ class WordPieceTokenizer():
 
 def mask_tokens(token_ids, tokenizer):
 
-    tokenizer1 = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
     cls_token_id = tokenizer1.cls_token_id
     sep_token_id = tokenizer1.sep_token_id
     pad_token_id = tokenizer1.pad_token_id
@@ -298,7 +298,7 @@ def mask_tokens(token_ids, tokenizer):
         token_ids[index] = mask_token_id
         masked_indices.add(index)
     
-    labels = [-100 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
+    labels = [0 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
     return token_ids, labels
 
 
