@@ -229,6 +229,10 @@ def validation_step(model, val_dataloader, device, logger, epoch, criterion, con
             mlm_accuracy += accuracy_mlm(mask_lm_output, masked_lm_labels)
             accuracy = calculate_mlm_accuracy_top_k(mask_lm_output, masked_lm_labels, k=1)
             print(f"MLM Accuracy: {accuracy * 100:.2f}%")
+            accuracy_top5 = calculate_mlm_accuracy_top_k(mask_lm_output, masked_lm_labels, k=5)
+            accuracy_top10 = calculate_mlm_accuracy_top_k(mask_lm_output, masked_lm_labels, k=10)
+            logger.log_validation_accuracy_mlm_top5(accuracy_top5, epoch)
+            logger.log_validation_accuracy_mlm_top10(accuracy_top10, epoch)
             logger.log_validation_accuracy_mlm(accuracy, epoch) 
 
            
@@ -273,16 +277,16 @@ def train_model(config):
     # test_dataloader = DataLoader(test_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
     val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
-    tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
+    # tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
     bert_model = BERT(
-        vocab_size=tokenizer1.vocab_size,
+        vocab_size=tokenizer.vocab_size,
         d_model=config['BERT_hidden_size'],
         n_layers=config['BERT_num_hidden_layers'],
         heads=config['BERT_att_heads'],
         dropout=config['dropout']
         )
 
-    model = BERTLM(bert_model, tokenizer1.vocab_size)
+    model = BERTLM(bert_model, tokenizer.vocab_size)
 
     
     # model = BERT(vocab_size=tokenizer1.vocab_size, max_seq_len=512, hidden_size=config['BERT_hidden_size'],

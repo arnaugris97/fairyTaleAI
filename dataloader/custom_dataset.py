@@ -73,10 +73,10 @@ class Custom_Dataset(Dataset):
                 next_sentence = list_sentences2[it]
                 is_next = 0            
 
-            # token_ids_sentence1 = self.tokenizer.encode(sentence)
-            token_ids_sentence1 = tokenizer.encode(sentence, add_special_tokens=False)
-            # token_ids_sentence2 = self.tokenizer.encode(next_sentence)
-            token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
+            token_ids_sentence1 = self.tokenizer1.encode(sentence)
+            # token_ids_sentence1 = self.tokenizer1.encode(sentence, add_special_tokens=False)
+            token_ids_sentence2 = self.tokenizer1.encode(next_sentence)
+            # token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
             input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
             masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
             
