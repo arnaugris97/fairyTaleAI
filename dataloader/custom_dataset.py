@@ -73,10 +73,10 @@ class Custom_Dataset(Dataset):
                 next_sentence = list_sentences2[it]
                 is_next = 0            
 
-            token_ids_sentence1 = self.tokenizer1.encode(sentence)
-            # token_ids_sentence1 = self.tokenizer1.encode(sentence, add_special_tokens=False)
-            token_ids_sentence2 = self.tokenizer1.encode(next_sentence)
-            # token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
+            # token_ids_sentence1 = self.tokenizer.encode(sentence)
+            token_ids_sentence1 = tokenizer.encode(sentence, add_special_tokens=False)
+            # token_ids_sentence2 = self.tokenizer.encode(next_sentence)
+            token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
             input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
             masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
             
@@ -86,6 +86,29 @@ class Custom_Dataset(Dataset):
 
         return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
 
+
+
+class Custom_Dataset_Inference(Dataset):
+
+    def __init__(self, dataset, sentences, tokenizer1):
+        super().__init__()
+        self.dataset = dataset
+        self.sentences = sentences
+        self.tokenizer1 = tokenizer1
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+
+        tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+        title = self.dataset.iloc[idx]['Title']
+        text = self.dataset.iloc[idx]['Sentence']
+        token_ids_sentence1 = tokenizer.encode(text, add_special_tokens=False) # FALTA AFEGIR CLS I SEP
+        tokens = [tokenizer.word2idx[tokenizer.cls_token]] + token_ids_sentence1 + [tokenizer.word2idx[tokenizer.sep_token]]
+        
+        return title, text, torch.tensor(tokens)
+    
 # from torch.utils.data import Dataset
 # import re
 # import random
