@@ -50,7 +50,7 @@ class ChromaEmbeddingProcessor:
             embeddings.append(sentence_embeddings)  # Store embeddings
             documents.append(sentence)  # Store original sentences
             ids.append(f"id{i}")  # Assign IDs
-            self.titles.append(title)  # Store titles
+            self.titles.append({"title": title})  # Store titles
 
             if i + 1 >= 30:  # Limit to 30 sentences for demonstration
                 break
@@ -62,6 +62,7 @@ class ChromaEmbeddingProcessor:
             collection.add(
                 documents=documents,
                 embeddings=embeddings,
+                metadatas=self.titles,
                 ids=ids
             )
             print("Inserted documents successfully")

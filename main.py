@@ -3,8 +3,8 @@ from train_utils import train_model
 
 if __name__ == "__main__":
     config = {
-        "lr": 5e-4,
-        "num_warmup_steps": 10,  #Defined at minibatch scale. It can be estimated: ~(1100*train_size/batch_size)/acc_step * epochs (Volem 1/5 de les epocs que faci warmup)
+        "lr": 1e-4,
+        "num_warmup_steps": 500,  #Defined at minibatch scale. It can be estimated: ~(1100*train_size/batch_size)/acc_step * epochs (Volem 1/5 de les epocs que faci warmup)
         "batch_size": 100,
         "epochs": 20,
         "accumulation_steps": 6,
