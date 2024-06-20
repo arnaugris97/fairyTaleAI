@@ -3,12 +3,12 @@ from train_utils import train_model
 
 if __name__ == "__main__":
     config = {
-        "lr": 1e-4,
+        "lr": 5e-4,
         "num_warmup_steps": 10,  #Defined at minibatch scale. It can be estimated: ~(1100*train_size/batch_size)/acc_step * epochs (Volem 1/5 de les epocs que faci warmup)
-        "batch_size": 1,
-        "epochs": 10000,
-        "accumulation_steps": 5,
-        "stopper_patience": 100000000000,
+        "batch_size": 100,
+        "epochs": 20,
+        "accumulation_steps": 6,
+        "stopper_patience": 10,
         "path_dataset": "dataset/merged_stories_full.csv",
         "path_savedir": "Checkpoints/checkpoint.pt",
         "path_tokenizer": 'tokenizer/wordPieceVocab.json',
@@ -18,8 +18,12 @@ if __name__ == "__main__":
         "BERT_hidden_size": 256,
         "BERT_num_hidden_layers": 4,
         "BERT_att_heads": 4,
-        "mlm_weight": 0.1,
-        "nsp_weight": 0.9
+        "max_seq_len": 512,
+        "dropout": 0.1,
+        "mlm_weight": 1.0,
+        "nsp_weight": 1.0,
+        "weight_decay": 0.01,
+        "betas": (0.9, 0.999)
     }
 
     train_model(config)
