@@ -2,10 +2,6 @@ import json
 import random
 import re
 from collections import defaultdict, Counter
-import torch
-from transformers import BertTokenizer
-
-import pandas as pd
 
 class WordPieceTokenizer():
     def __init__(self, vocab_size=10000):
@@ -78,9 +74,7 @@ class WordPieceTokenizer():
             self.vocab.append(new_token)
         self.word2idx = {word: idx for idx, word in enumerate(self.vocab)}
         self.idx2word = {idx: word for idx, word in enumerate(self.vocab)}
-        print(self.vocab)
-        print(len(self.vocab))
-        print(self.word_freqs)
+        
     
     
     def encode(self, text):
@@ -137,29 +131,20 @@ class WordPieceTokenizer():
         return subwords
     
     def add_special_tokens(self, token_ids1, token_ids2, max_length=60):
-        # tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
-
-        # cls_token_id = tokenizer1.cls_token_id
-        # sep_token_id = tokenizer1.sep_token_id
-        # pad_token_id = tokenizer1.pad_token_id
-    
         tokens_with_special_tokens  = [self.word2idx[self.cls_token]] + token_ids1 + [self.word2idx[self.sep_token]] + token_ids2 + [self.word2idx[self.sep_token]]
-        # tokens_with_special_tokens  = [cls_token_id] + token_ids1 + [sep_token_id] + token_ids2 + [sep_token_id]
+
         # Create attention mask
         attention_mask = [0] * len(tokens_with_special_tokens)
 
         # Create token segment type ids
         token_type_ids = [1] * (len(token_ids1) + 2) + [2] * (len(token_ids2) + 1)
         
-
         padded_token_ids = tokens_with_special_tokens + [self.word2idx[self.pad_token]] * (max_length - len(tokens_with_special_tokens))
-        # padded_token_ids = tokens_with_special_tokens + [pad_token_id] * (max_length - len(tokens_with_special_tokens))
         attention_mask = attention_mask + [1] * (max_length - len(attention_mask))
         token_type_ids = token_type_ids + [0] * (max_length - len(token_type_ids))
         
         return padded_token_ids, attention_mask, token_type_ids
     
-    def decode(self, indices):
         tokens = [self.idx2word[index] for index in indices]
         # Split the text by the first sep_token
         sep_index = tokens.index(self.sep_token)
@@ -273,20 +258,13 @@ class WordPieceTokenizer():
         return splits
 
 def mask_tokens(token_ids, tokenizer):
-
-    # tokenizer1 = BertTokenizer.from_pretrained('bert-base-cased')
-    # cls_token_id = tokenizer1.cls_token_id
-    # sep_token_id = tokenizer1.sep_token_id
-    # pad_token_id = tokenizer1.pad_token_id
-    # mask_token_id = tokenizer1.mask_token_id
-
     gt = token_ids.copy()
-    
+
     # Mask 15% of the tokens
     masked_indices = set()
     # 15% of significant tokens, different to [CLS], [SEP], and [PAD]
     significant_tokens = [token for token in token_ids if token not in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]]
-    # significant_tokens = [token for token in token_ids if token not in [cls_token_id, sep_token_id, pad_token_id]]
+    
     num_masked = max(1, int(len(significant_tokens) * 0.15))
     while len(masked_indices) < num_masked:
         index = random.randint(1, len(token_ids) - 2)
@@ -294,15 +272,12 @@ def mask_tokens(token_ids, tokenizer):
             continue
         token = token_ids[index]
         if token in [tokenizer.word2idx[tokenizer.cls_token], tokenizer.word2idx[tokenizer.sep_token], tokenizer.word2idx[tokenizer.pad_token]]:
-        # if token in [cls_token_id, sep_token_id, pad_token_id]:
             continue
         token_ids[index] = tokenizer.word2idx[tokenizer.mask_token]
-        # token_ids[index] = mask_token_id
         masked_indices.add(index)
     
     labels = [0 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
  
-
     return token_ids, labels
 
 
@@ -318,62 +293,3 @@ def load_separate_and_clean_stories(filename):
         cleaned_stories.append(cleaned_story)
     
     return cleaned_stories
-
-
-
-# TRAIN THE TOKENIZER
-# Load the text to train the tokenizer
-# dataset_csv = pd.read_csv('dataset/merged_stories_full.csv')
-
-# # Concat all the stories from the dataset on the colum 'Title' and 'cleaned_story'
-# text = ' '.join(dataset_csv['cleaned_story'])
-
-
-# # Train the tokenizer
-# tokenizer = WordPieceTokenizer(10000)
-# tokenizer.fit(text)
-
-# # Save the tokenizer
-# tokenizer.save('tokenizer/wordPieceVocab.json')
-
-# print(tokenizer.vocab_size)
-
-
-# USE THE TOKENIZER
-# Load the dataset
-# filename = "dataset/merged_clean.txt"
-# # filename = "dataset/combined_stories.txt"
-# dataset = load_separate_and_clean_stories(filename)
-
-# # Load the tokenizer
-# tokenizer = WordPieceTokenizer()
-# tokenizer.load('tokenizer/wordPieceVocab.json')
-
-# # Encode the first story
-# story = dataset[0]
-
-# # Split the story into sentences
-# sentences = re.split(r'\n', story)
-
-# # Tokenize the sentences
-# tokens = []
-# for sentence in sentences:
-#     token_ids, attention_mask, token_type_ids = tokenizer.encode(sentence)
-#     print(f'token_ids:', token_ids)
-#     print(f'attention_mask:', attention_mask)
-#     print(f'token_type_ids', token_type_ids)
-
-#     masked_input_ids, labels = mask_tokens(token_ids, tokenizer)
-#     print(f'masked_input_ids:', masked_input_ids)
-#     print(f'labels:', labels)
-
-
-
-# tokens = tokenizer.encode_text(story)
-# tokens = tokenizer.encode(story)
-# print(tokens)
-
-
-# Decode the tokens
-# decoded_story = tokenizer.decode(tokens)
-# print(decoded_story)

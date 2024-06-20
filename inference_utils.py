@@ -27,8 +27,6 @@ def load_model(model_path, tokenizer_path):
         heads=checkpoint['BERT_att_heads'],
         dropout=0.1  # Adjust if you have this value stored in the checkpoint
     )
-
-    print(model)
     
     # Adjust state dict keys
     adjusted_state_dict = adjust_state_dict_keys(checkpoint['model_state_dict'])

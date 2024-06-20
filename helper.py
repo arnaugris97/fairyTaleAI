@@ -1,4 +1,4 @@
-import torch # type: ignore
+import torch
 import random
 
 # Helper function to prepare tensors

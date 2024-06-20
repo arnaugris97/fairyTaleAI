@@ -18,6 +18,7 @@ if __name__ == "__main__":
         "BERT_hidden_size": 256,
         "BERT_num_hidden_layers": 4,
         "BERT_att_heads": 4,
+        "max_seq_len": 512,
         "dropout": 0.1,
         "mlm_weight": 1.0,
         "nsp_weight": 1.0,

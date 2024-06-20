@@ -3,7 +3,6 @@ import re
 import random
 from tokenizer.wordPieceTokenizer import mask_tokens
 import torch
-from transformers import BertTokenizer
 
 
 def separate_sentences(text):
@@ -22,19 +21,18 @@ def separate_sentences(text):
 
 class Custom_Dataset(Dataset):
 
-    def __init__(self, dataset, sentences, tokenizer1):
+    def __init__(self, dataset, sentences, tokenizer, max_seq_len=512):
         super().__init__()
         self.dataset = dataset
         self.sentences = sentences
-        self.tokenizer1 = tokenizer1
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
 
-        tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-        
         while True:
             title = self.dataset.iloc[idx]['Title']
             text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
@@ -73,96 +71,13 @@ class Custom_Dataset(Dataset):
                 next_sentence = list_sentences2[it]
                 is_next = 0            
 
-            # token_ids_sentence1 = self.tokenizer.encode(sentence)
-            token_ids_sentence1 = tokenizer.encode(sentence, add_special_tokens=False)
-            # token_ids_sentence2 = self.tokenizer.encode(next_sentence)
-            token_ids_sentence2 = tokenizer.encode(next_sentence, add_special_tokens=False)
-            input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
-            masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
+            token_ids_sentence1 = self.tokenizer.encode(sentence)
+            token_ids_sentence2 = self.tokenizer.encode(next_sentence)
+            input_ids, attention_mask, segment_ids = self.tokenizer.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=self.max_seq_len)
+            masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer)
             
 
-            if len(masked_input_ids) == 512 and (len(token_ids_sentence1) + len(token_ids_sentence2)) < 509:
+            if len(masked_input_ids) == self.max_seq_len and (len(token_ids_sentence1) + len(token_ids_sentence2)) < (self.max_seq_len - 3):
                 break
 
         return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
-
-
-
-class Custom_Dataset_Inference(Dataset):
-
-    def __init__(self, dataset, sentences, tokenizer1):
-        super().__init__()
-        self.dataset = dataset
-        self.sentences = sentences
-        self.tokenizer1 = tokenizer1
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-
-        tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-        title = self.dataset.iloc[idx]['Title']
-        text = self.dataset.iloc[idx]['Sentence']
-        token_ids_sentence1 = tokenizer.encode(text, add_special_tokens=False) # FALTA AFEGIR CLS I SEP
-        tokens = [tokenizer.word2idx[tokenizer.cls_token]] + token_ids_sentence1 + [tokenizer.word2idx[tokenizer.sep_token]]
-        
-        return title, text, torch.tensor(tokens)
-    
-# from torch.utils.data import Dataset
-# import re
-# import random
-# from tokenizer.wordPieceTokenizer import mask_tokens
-# import torch
-# from transformers import BertTokenizer
-
-# def separate_sentences(text):
-#     text = text.replace('...', '#^')
-#     text = text.replace('.', '~.')
-#     text = text.replace('?', '@?')
-#     text = text.replace('!', '%!')
-    
-#     b = re.split('[.?!^]', text)
-#     c = [w.replace('~', '.') for w in b]
-#     c = [w.replace('@', '?') for w in c]
-#     c = [w.replace('#', '...') for w in c]
-#     c = [w.replace('%', '!') for w in c]
-    
-#     return c
-
-# class Custom_Dataset(Dataset):
-
-#     def __init__(self, dataset, tokenizer1):
-#         super().__init__()
-#         self.dataset = dataset
-#         self.tokenizer1 = tokenizer1
-#         self.tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-        
-#         # Combine exactly two sentences to form the single element of the dataset
-#         self.title, self.sentence, self.next_sentence, self.is_next = self._create_single_element()
-
-#     def _create_single_element(self):
-#         idx = random.randint(0, len(self.dataset) - 1)
-#         title = self.dataset.iloc[idx]['Title']
-#         text = separate_sentences(self.dataset.iloc[idx]['cleaned_story'])
-#         if len(text) < 2:
-#             raise ValueError("The text does not contain enough sentences.")
-        
-#         sentence = text[0]
-#         next_sentence = text[1]
-#         is_next = 1  # Assuming the two sentences are consecutive from the same text
-#         return title, sentence,next_sentence, is_next
-
-#     def __len__(self):
-#         return 1
-
-#     def __getitem__(self, idx):
-#         token_ids_sentence1 = self.tokenizer.encode(self.sentence, add_special_tokens=False)
-            
-#         token_ids_sentence2 = self.tokenizer.encode(self.next_sentence, add_special_tokens=False)
-#         input_ids, attention_mask, segment_ids = self.tokenizer1.add_special_tokens(token_ids_sentence1, token_ids_sentence2, max_length=512)
-#         masked_input_ids, labels = mask_tokens(input_ids, self.tokenizer1)
-
-    
-
-#         return self.title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([self.is_next]), torch.tensor(labels)
