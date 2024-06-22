@@ -81,3 +81,44 @@ class Custom_Dataset(Dataset):
                 break
 
         return title, torch.tensor(masked_input_ids), torch.tensor(attention_mask), torch.tensor(segment_ids), torch.tensor([is_next]), torch.tensor(labels)
+    
+
+class Custom_Dataset_DB(Dataset):
+
+    def __init__(self, dataset, tokenizer, max_seq_len=512):
+        super().__init__()
+        self.dataset = dataset
+        self.tokenizer = tokenizer
+        self.max_seq_len = max_seq_len
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+
+            title = self.dataset.iloc[idx]['Title']
+            text = str(self.dataset.iloc[idx]['Sentence'])
+
+            token_ids = self.tokenizer.encode(text)
+    
+            if len(token_ids) > self.max_seq_len-2:
+                token_ids = token_ids[:self.max_seq_len-2]
+                token_ids = [self.tokenizer.word2idx[self.tokenizer.cls_token]] + token_ids + [self.tokenizer.word2idx[self.tokenizer.sep_token]]
+            else:
+                token_ids = [self.tokenizer.word2idx[self.tokenizer.cls_token]] + token_ids + [self.tokenizer.word2idx[self.tokenizer.sep_token]]+[self.tokenizer.word2idx[self.tokenizer.pad_token]] * (self.max_seq_len-2 - len(token_ids))
+    
+            attention_mask = [1 if i < len(token_ids) else 0 for i in range(self.max_seq_len)]
+            token_type_ids = [0] * self.max_seq_len
+            
+            # Convert lists to tensors
+            input_ids = torch.tensor(token_ids, dtype=torch.long)
+            attention_mask = torch.tensor(attention_mask, dtype=torch.long)
+            token_type_ids = torch.tensor(token_type_ids, dtype=torch.long)
+
+            return {
+                    'input_ids': input_ids,
+                    'attention_mask': attention_mask,
+                    'token_type_ids': token_type_ids,
+                    'sentence': text,
+                    'title':title
+                }

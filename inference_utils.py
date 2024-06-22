@@ -2,6 +2,7 @@
 import torch
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT
+import chromadb
 
 def adjust_state_dict_keys(state_dict):
     new_state_dict = {}
@@ -10,6 +11,10 @@ def adjust_state_dict_keys(state_dict):
         new_key = key.replace('bert.', '')
         new_state_dict[new_key] = value
     return new_state_dict
+
+def load_chromadb(chromadb_path):
+    chromadb_client = chromadb.PersistentClient(chromadb_path)
+    return chromadb_client
 
 def load_model(model_path, tokenizer_path):
     # Load the checkpoint
@@ -66,8 +71,6 @@ def preprocess_input(text, tokenizer, max_length=512):
         'attention_mask': attention_mask,
         'token_type_ids': token_type_ids
     }
-
-
 
 def generate_embeddings(inputs, model):
     # Assuming inputs is a dictionary with input_ids and token_type_ids
