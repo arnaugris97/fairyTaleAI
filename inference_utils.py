@@ -73,15 +73,17 @@ def preprocess_input(text, tokenizer, max_length=512):
     }
 
 def generate_embeddings(inputs, model):
+
     # Assuming inputs is a dictionary with input_ids and token_type_ids
     input_ids = inputs['input_ids']
     token_type_ids = inputs['token_type_ids']
     
     # Call the model's forward method with the correct arguments
     outputs = model(input_ids, token_type_ids)
+
+    cls_embeddings = outputs[:, 0, :]
     
-    # Detach the tensor from the computation graph and convert to NumPy array
-    return outputs.detach().cpu()
+    return cls_embeddings
 
 
 def search_chromadb(embedding, chromadb_client, top_k=5):
