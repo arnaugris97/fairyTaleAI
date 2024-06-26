@@ -137,6 +137,7 @@ class MilvusEmbeddingProcessor:
 
     def load_sentences_from_csv(self):
         return pd.read_csv(self.csv_file)
+    
 
     def process_and_store_embeddings(self):
         dataset = Custom_Dataset_DB(self.load_sentences_from_csv(), self.tokenizer, 512)
@@ -177,13 +178,13 @@ class MilvusEmbeddingProcessor:
 if __name__ == "__main__":
     model_path = 'Checkpoints/checkpoint.pt'
     tokenizer_path = 'tokenizer/wordPieceVocab.json'
-    csv_file = 'dataset/dataset_sentences.csv'
+    csv_file = 'dataset/dataset_sentences_cleaned.csv'
     storage_path = 'vectorDB/'
 
     # processor = ChromaEmbeddingProcessor(model_path, tokenizer_path, csv_file, storage_path)
     processor = MilvusEmbeddingProcessor(model_path, tokenizer_path, csv_file)
 
-    results = processor.process_query('Once upon a time, in a world of wonder and enchantment, there lived a tiny, delicate girl named Thumbelina.')
-    for result in results[0]:
-        print(result)
-    # processor.process_and_store_embeddings()
+    # results = processor.process_query('A story of flying dragons')
+    # for result in results[0]:
+    #     print(result)
+    processor.process_and_store_embeddings()

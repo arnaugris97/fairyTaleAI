@@ -45,7 +45,7 @@ def load_model(model_path, tokenizer_path):
     
     return model, tokenizer
 
-def preprocess_input(text, tokenizer, max_length=512):
+def preprocess_input(text, tokenizer, max_length=512, isBERT=False):
     # Ensure text is a string
     text = str(text)
     
@@ -53,10 +53,15 @@ def preprocess_input(text, tokenizer, max_length=512):
     token_ids = tokenizer.encode(text)
     
     # Ensure the token_ids length is exactly max_length
-    if len(token_ids) > max_length:
-        token_ids = token_ids[:max_length]
+    if isBERT:
+        token_ids = token_ids + [tokenizer.pad_token_id] * (max_length - len(token_ids))
     else:
-        token_ids = token_ids + [tokenizer.word2idx[tokenizer.pad_token]] * (max_length - len(token_ids))
+        if len(token_ids) > max_length:
+            token_ids = token_ids[:max_length]
+        else:
+            token_ids = token_ids + [tokenizer.word2idx[tokenizer.pad_token]] * (max_length - len(token_ids))
+    
+    
     
     attention_mask = [1 if i < len(token_ids) else 0 for i in range(max_length)]
     token_type_ids = [0] * max_length
@@ -80,6 +85,9 @@ def generate_embeddings(inputs, model):
     
     # Call the model's forward method with the correct arguments
     outputs = model(input_ids, token_type_ids)
+    # hidden_states = outputs.last_hidden_state
+    # cls_embeddings = hidden_states[:, 0, :]
+    # cls_embeddings = cls_embeddings.squeeze(0)
 
     cls_embeddings = outputs[:, 0, :]
     
