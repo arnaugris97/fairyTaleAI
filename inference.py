@@ -1,6 +1,5 @@
 from create_embedding_DB import MilvusEmbeddingProcessor
 from inference_utils import load_model, preprocess_input, generate_embeddings, search_chromadb, generate_output
-import chromadb
 from langchain_community.llms import Ollama
 
 
