@@ -1,6 +1,5 @@
 # main.py
 from train_utils import train_model
-
 if __name__ == "__main__":
     config = {
         "lr": 1e-4,

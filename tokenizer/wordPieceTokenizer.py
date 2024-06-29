@@ -280,6 +280,28 @@ def mask_tokens(token_ids, tokenizer):
  
     return token_ids, labels
 
+def mask_tokens_BERT(token_ids, tokenizer):
+    gt = token_ids.copy()
+
+    # Mask 15% of the tokens
+    masked_indices = set()
+    # 15% of significant tokens, different to [CLS], [SEP], and [PAD]
+    significant_tokens = [token for token in token_ids if token not in [tokenizer._convert_token_to_id(tokenizer.cls_token), tokenizer._convert_token_to_id(tokenizer.sep_token), tokenizer._convert_token_to_id(tokenizer.pad_token)]]
+    
+    num_masked = max(1, int(len(significant_tokens) * 0.15))
+    while len(masked_indices) < num_masked:
+        index = random.randint(1, len(token_ids) - 2)
+        if index in masked_indices:
+            continue
+        token = token_ids[index]
+        if token in [tokenizer._convert_token_to_id(tokenizer.cls_token), tokenizer._convert_token_to_id(tokenizer.sep_token), tokenizer._convert_token_to_id(tokenizer.pad_token)]:
+            continue
+        token_ids[index] = tokenizer._convert_token_to_id(tokenizer.mask_token)
+        masked_indices.add(index)
+    
+    labels = [0 if i not in masked_indices else gt[i] for i in range(len(token_ids))]
+ 
+    return token_ids, labels
 
 def load_separate_and_clean_stories(filename):
     with open(filename, 'r') as file:

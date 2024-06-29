@@ -1,5 +1,6 @@
 from BERT.embedding_layer import EmbeddingLayer
 import torch.nn as nn
+from transformers import DistilBertForSequenceClassification,DistilBertForMaskedLM
 
 from BERT.encoder_layer import EncoderLayer
 
@@ -108,4 +109,41 @@ class BERTLM(nn.Module):
         x = self.bert(x, segment_label)
         nsp_output = self.next_sentence(x)
         mlm_output = self.mask_lm(x)
+        return nsp_output, mlm_output
+    
+
+class BERT_TL(nn.Module):
+    """
+    BERT Language Model - Fine-tuning DistilBERT
+    Next Sentence Prediction Model + Masked Language Model
+    Separated to be able to do inference to the main model
+    """
+
+    def __init__(self,d_model=768,vocab_size=30522,max_length=512):
+        """
+        :param bert: BERT model which should be trained
+        :param vocab_size: total vocab size for masked_lm
+        """
+        super().__init__()
+        model_MLM = DistilBertForMaskedLM.from_pretrained("distilbert-base-uncased")
+        model_NSP = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+
+        self.bert = model_MLM.distilbert
+        for param in self.bert.parameters(): # we just keep unfrozen the last encoder (we can change that)
+            param.requires_grad = False
+        for param in self.bert.transformer.layer[-1].parameters():
+            param.requires_Grad = True
+
+        self.next_sentence = nn.Sequential(model_NSP.pre_classifier,model_NSP.classifier) # We can add here dropout regularization
+        self.mask_lm = nn.Sequential(model_MLM.vocab_transform,model_MLM.vocab_layer_norm, model_MLM.vocab_projector,nn.LogSoftmax(dim=-1))
+
+        self.d_model = 768
+    def forward(self, x, segment_label):
+        x = self.bert(x, segment_label)[0]
+
+        pooled_output =  x[:, 0] 
+        nsp_output = self.next_sentence(pooled_output) 
+
+        mlm_output = self.mask_lm(x)
+
         return nsp_output, mlm_output

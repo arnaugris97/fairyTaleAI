@@ -7,12 +7,13 @@ from sklearn.metrics import accuracy_score
 from Optimizer.scheduler_optim import ScheduledOptim
 from tensorboard_logger import TensorBoardLogger
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
-from BERT.BERT_model import BERT, BERTLM
-from dataloader.custom_dataset import Custom_Dataset
+from BERT.BERT_model import BERT, BERTLM, BERT_TL
+from dataloader.custom_dataset import Custom_Dataset,Custom_Dataset_TL
 from torch.optim import AdamW
 from torch.optim import Adam
 from transformers import get_inverse_sqrt_schedule
 from transformers import BertTokenizer
+from transformers import DistilBertTokenizer
 
 
 class EarlyStopper:
@@ -74,7 +75,7 @@ def calculate_mlm_accuracy_top_k(logits, labels, k=5):
 
     return top_k_accuracy
 
-def training_steps(model, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, loss_fn, config):
+def training_steps(model, scheduler, train_dataloader, device, accumulation_steps, logger, epoch, loss_ns,loss_fn, config):
     model.train()
     total_loss = 0
    
@@ -85,7 +86,7 @@ def training_steps(model, scheduler, train_dataloader, device, accumulation_step
 
         next_sent_output, mask_lm_output = model.forward(input_ids,segment_ids)
 
-        nsp_loss = loss_fn(next_sent_output, next_sentence_labels.view(-1))
+        nsp_loss = loss_ns(next_sent_output, next_sentence_labels.view(-1))
         mlm_loss = loss_fn(mask_lm_output.transpose(1, 2), masked_lm_labels)
 
         loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
@@ -114,7 +115,7 @@ def training_steps(model, scheduler, train_dataloader, device, accumulation_step
 
     return model, avg_loss
 
-def validation_step(model, val_dataloader, device, logger, epoch, loss_fn, config):
+def validation_step(model, val_dataloader, device, logger, epoch, loss_ns,loss_fn, config):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     model.eval()
@@ -133,7 +134,7 @@ def validation_step(model, val_dataloader, device, logger, epoch, loss_fn, confi
 
             next_sent_output, mask_lm_output = model.forward(input_ids,segment_ids)
 
-            nsp_loss = loss_fn(next_sent_output, next_sentence_labels)
+            nsp_loss = loss_ns(next_sent_output, next_sentence_labels)
             mlm_loss = loss_fn(mask_lm_output.transpose(1, 2), masked_lm_labels)
 
             loss = mlm_loss * config['mlm_weight'] + nsp_loss * config['nsp_weight']
@@ -180,8 +181,7 @@ def train_model(config):
     dataset_csv = pd.read_csv(config["path_dataset"])
 
     # Initialize the tokenizer
-    tokenizer = WordPieceTokenizer()
-    tokenizer.load(config["path_tokenizer"])
+    tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 
     random_state = config['random_state']
     test_size = config['test_size']
@@ -190,39 +190,31 @@ def train_model(config):
     # Split the dataset into train, validation, and test sets
     train, val = train_test_split(dataset_csv, test_size=val_size/(1-test_size), random_state=random_state)
 
-    train_dataset = Custom_Dataset(train, 2, tokenizer, config['max_seq_len'])
-    val_dataset = Custom_Dataset(val, 2, tokenizer, config['max_seq_len'])
+    train_dataset = Custom_Dataset_TL(train, 2, tokenizer, config['max_seq_len'])
+    val_dataset = Custom_Dataset_TL(val, 2, tokenizer, config['max_seq_len'])
 
     train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
     val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, drop_last=True)
 
-    bert_model = BERT(
-        vocab_size=tokenizer.vocab_size,
-        seq_len=config['max_seq_len'],
-        d_model=config['BERT_hidden_size'],
-        n_layers=config['BERT_num_hidden_layers'],
-        heads=config['BERT_att_heads'],
-        dropout=config['dropout']
-        )
-
-    model = BERTLM(bert_model, tokenizer.vocab_size)
+    model =  BERT_TL()
 
     model.to(device)
 
+    print(model)
     optimizer = Adam(model.parameters(), lr=config['lr'], betas=config['betas'], weight_decay=config['weight_decay'])
     scheduler = ScheduledOptim(
-        optimizer, model.bert.d_model, n_warmup_steps=config['num_warmup_steps']
+        optimizer, model.d_model, n_warmup_steps=config['num_warmup_steps']
         )
 
     # Initialize the loss function
     loss_fn = torch.nn.NLLLoss(ignore_index=0)
-
+    loss_ns = torch.nn.CrossEntropyLoss()
     # Initialize the early stopper
     early_stopper = EarlyStopper(patience=config['stopper_patience'], min_delta=0)
 
     for epoch in range(config['epochs']):
-        model, loss_train = training_steps(model,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch, loss_fn, config)
-        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, loss_fn, config)
+        model, loss_train = training_steps(model,scheduler, train_dataloader, device, config['accumulation_steps'], logger, epoch,loss_ns, loss_fn, config)
+        loss_val, accuracy_val_nsp, accuracy_val_mlm = validation_step(model, val_dataloader, device, logger, epoch, loss_ns,loss_fn, config)
 
         print(f"Epoch {epoch}, Train Loss: {loss_train}, Val Loss: {loss_val}, Acc NSP Loss: {accuracy_val_nsp}, Acc MLM Loss: {accuracy_val_mlm * 100:.2f}")
 
