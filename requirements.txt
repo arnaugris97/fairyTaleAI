@@ -9,3 +9,4 @@ plotly
 tensorboard
 pymilvus
 langchain_community
+streamlit
