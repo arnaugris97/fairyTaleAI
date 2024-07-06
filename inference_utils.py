@@ -1,8 +1,9 @@
 # fairytaleAI/inference_utils.py
 import torch
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
-from BERT.BERT_model import BERT
+from BERT.BERT_model import BERT, BERT_TL
 import chromadb
+from transformers import DistilBertModel
 
 def adjust_state_dict_keys(state_dict):
     new_state_dict = {}
@@ -44,6 +45,32 @@ def load_model(model_path, tokenizer_path):
     model.eval()  # Set the model to evaluation mode
     
     return model, tokenizer
+
+
+def load_model_TL(model_path, tokenizer):
+    # Load the checkpoint
+    checkpoint = torch.load(model_path)
+    
+    # Initialize the model with the loaded configuration
+    model = BERT_TL(
+        d_model=checkpoint['BERT_hidden_size'],
+        vocab_size=tokenizer.vocab_size,
+        max_length=512,  # Adjust if you have this value stored in the checkpoint
+        is_inference=True
+    )
+    
+    # Adjust state dict keys
+    # adjusted_state_dict = adjust_state_dict_keys(checkpoint['model_state_dict'])
+    adjusted_state_dict = checkpoint['model_state_dict']
+
+    # Filter out the keys that are not part of the BERT model
+    filtered_state_dict = {k: v for k, v in adjusted_state_dict.items() if k in model.state_dict()}
+    
+    # Load the model state
+    model.load_state_dict(filtered_state_dict)
+    model.eval()  # Set the model to evaluation mode
+    
+    return model
 
 def preprocess_input(text, tokenizer, max_length=512, isBERT=False):
     # Ensure text is a string
@@ -92,6 +119,17 @@ def generate_embeddings(inputs, model):
     cls_embeddings = outputs[:, 0, :]
     
     return cls_embeddings
+
+def generate_TL_embeddings(inputs, model):
+
+    # Assuming inputs is a dictionary with input_ids and token_type_ids
+    input_ids = inputs['input_ids']
+    token_type_ids = inputs['token_type_ids']
+    
+    # Call the model's forward method with the correct arguments
+    output_CLS = model(input_ids, token_type_ids)
+    
+    return output_CLS
 
 
 def search_chromadb(embedding, chromadb_client, top_k=5):

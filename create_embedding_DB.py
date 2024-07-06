@@ -172,7 +172,7 @@ class MilvusEmbeddingProcessor:
         inputs = preprocess_input(str(sentence), self.tokenizer)
         sentence_embeddings = generate_embeddings(inputs, self.model).squeeze().tolist()
         results = self.query_embeddings(sentence_embeddings, 10)
-        return results
+        return results, inputs['input_ids']
 
 # Example usage:
 if __name__ == "__main__":

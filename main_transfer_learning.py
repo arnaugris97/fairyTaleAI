@@ -4,7 +4,7 @@ if __name__ == "__main__":
         "lr": 1e-4,
         "num_warmup_steps": 500,  #Defined at minibatch scale. It can be estimated: ~(1100*train_size/batch_size)/acc_step * epochs (Volem 1/5 de les epocs que faci warmup)
         "batch_size": 100,
-        "epochs": 20,
+        "epochs": 100,
         "accumulation_steps": 6,
         "stopper_patience": 10,
         "path_dataset": "dataset/merged_stories_full.csv",

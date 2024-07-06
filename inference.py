@@ -1,13 +1,14 @@
+from createTL_embedding_DB import MilvusEmbeddingProcessorTL
 from create_embedding_DB import MilvusEmbeddingProcessor
 from inference_utils import load_model, preprocess_input, generate_embeddings, search_chromadb, generate_output
 from langchain_community.llms import Ollama
 
 
 if __name__ == "__main__":
-    model_path = 'Checkpoints/checkpoint.pt'
+    model_path = 'Checkpoints/TL100Epochs.pt'
     tokenizer_path = 'tokenizer/wordPieceVocab.json'
 
-    processor = MilvusEmbeddingProcessor(model_path, tokenizer_path, '')
+    processor = MilvusEmbeddingProcessorTL(model_path, '')
     llm = Ollama(model="llama3")
 
     userPrompt = "Once upon a time there was a little riding hood who lived in a small village."
@@ -16,10 +17,12 @@ if __name__ == "__main__":
         results = processor.process_query(userPrompt)
         context = ''
         for result in results[0]:
-            if context == '':
-                context += result['entity']['text']
-            else:
-                context += ', ' + result['entity']['text']
+            for sentence in result:
+            
+                if context == '':
+                    context += sentence['entity']['text']
+                else:
+                    context += ', ' + sentence['entity']['text']
             
         print(context)
         # Build a prompt with template for RAG
