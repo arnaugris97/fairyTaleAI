@@ -13,3 +13,4 @@ streamlit
 matplotlib
 openai
 langchain-openai
+anthropic
