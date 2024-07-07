@@ -106,8 +106,6 @@ class Custom_Dataset_DB(Dataset):
                 token_ids = [self.tokenizer.word2idx[self.tokenizer.cls_token]] + token_ids + [self.tokenizer.word2idx[self.tokenizer.sep_token]]
             else:
                 token_ids = [self.tokenizer.word2idx[self.tokenizer.cls_token]] + token_ids + [self.tokenizer.word2idx[self.tokenizer.sep_token]]+[self.tokenizer.word2idx[self.tokenizer.pad_token]] * (self.max_seq_len-2 - len(token_ids))
-            
-            # token_ids = token_ids +[self.tokenizer.pad_token_id] * (self.max_seq_len - len(token_ids))
 
     
             attention_mask = [1 if i < len(token_ids) else 0 for i in range(self.max_seq_len)]

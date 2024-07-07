@@ -1,6 +1,4 @@
 from createTL_embedding_DB import MilvusEmbeddingProcessorTL
-from create_embedding_DB import MilvusEmbeddingProcessor
-from inference_utils import load_model, preprocess_input, generate_embeddings, search_chromadb, generate_output
 from langchain_community.llms import Ollama
 
 
@@ -24,13 +22,13 @@ if __name__ == "__main__":
                 else:
                     context += ', ' + sentence['entity']['text']
             
-        print(context)
+        
         # Build a prompt with template for RAG
-        # prompt_template = f"This is a prompt for a RAG system. I need you to create a fairy tale in catalan following the user prompt and the context. The prompt is the user prompt: {userPrompt} and this is the context: {context}. So the output should be in catalan."
+        prompt_template = f"This is a prompt for a RAG system. I need you to create a fairy tale in catalan following the user prompt and the context. The prompt is the user prompt: {userPrompt} and this is the context: {context}. So the output should be in catalan."
 
 
-        # llm_result = llm.invoke(prompt_template)
+        llm_result = llm.invoke(prompt_template)
 
-        # print(llm_result)
+        print(llm_result)
     except ConnectionError as e:
         print(e)

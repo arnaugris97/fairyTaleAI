@@ -2,8 +2,6 @@
 import torch
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT, BERT_TL
-import chromadb
-from transformers import DistilBertModel
 
 def adjust_state_dict_keys(state_dict):
     new_state_dict = {}
@@ -12,10 +10,6 @@ def adjust_state_dict_keys(state_dict):
         new_key = key.replace('bert.', '')
         new_state_dict[new_key] = value
     return new_state_dict
-
-def load_chromadb(chromadb_path):
-    chromadb_client = chromadb.PersistentClient(chromadb_path)
-    return chromadb_client
 
 def load_model(model_path, tokenizer_path):
     # Load the checkpoint
@@ -52,15 +46,9 @@ def load_model_TL(model_path, tokenizer):
     checkpoint = torch.load(model_path)
     
     # Initialize the model with the loaded configuration
-    model = BERT_TL(
-        d_model=checkpoint['BERT_hidden_size'],
-        vocab_size=tokenizer.vocab_size,
-        max_length=512,  # Adjust if you have this value stored in the checkpoint
-        is_inference=True
-    )
+    model = BERT_TL(is_inference=True)
     
     # Adjust state dict keys
-    # adjusted_state_dict = adjust_state_dict_keys(checkpoint['model_state_dict'])
     adjusted_state_dict = checkpoint['model_state_dict']
 
     # Filter out the keys that are not part of the BERT model
@@ -112,9 +100,6 @@ def generate_embeddings(inputs, model):
     
     # Call the model's forward method with the correct arguments
     outputs = model(input_ids, token_type_ids)
-    # hidden_states = outputs.last_hidden_state
-    # cls_embeddings = hidden_states[:, 0, :]
-    # cls_embeddings = cls_embeddings.squeeze(0)
 
     cls_embeddings = outputs[:, 0, :]
     
@@ -131,15 +116,3 @@ def generate_TL_embeddings(inputs, model):
     
     return output_CLS
 
-
-def search_chromadb(embedding, chromadb_client, top_k=5):
-    try:
-        embedding_np = embedding.numpy().tolist()
-        results = chromadb_client.get_collection(name="BERT_embeddings").query(query_embeddings=[embedding_np], n_results=top_k)
-        return results
-    except Exception as e:
-        raise ConnectionError("Connection to Chroma not found") from e
-
-def generate_output(results):
-    output = [result for result in results["documents"]]
-    return output

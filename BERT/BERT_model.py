@@ -120,7 +120,7 @@ class BERT_TL(nn.Module):
     Separated to be able to do inference to the main model
     """
 
-    def __init__(self,d_model=768,vocab_size=30522,max_length=512, is_inference=False):
+    def __init__(self, is_inference=False):
         """
         :param bert: BERT model which should be trained
         :param vocab_size: total vocab size for masked_lm
@@ -142,8 +142,7 @@ class BERT_TL(nn.Module):
         self.d_model = 768
     def forward(self, x, segment_label):
         x = self.bert(x, segment_label)[0]
-        pooled_output = torch.mean(x, dim=1) 
-        # pooled_output =  x[:, 0] # We just keep the CLS token
+        pooled_output = torch.mean(x, dim=1) # Mean pooling
 
         if self.is_inference:
             return pooled_output

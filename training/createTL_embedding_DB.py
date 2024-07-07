@@ -1,9 +1,9 @@
 import pandas as pd
 from pymilvus import MilvusClient
 
-from inference_utils import generate_TL_embeddings, load_model, load_model_TL, preprocess_input, generate_embeddings
+from utils.inference_utils import generate_TL_embeddings, load_model_TL, preprocess_input
 from torch.utils.data import DataLoader
-from dataloader.custom_dataset import Custom_Dataset_DB, Custom_Inference_TL_Dataset_DB
+from dataloader.custom_dataset import Custom_Inference_TL_Dataset_DB
 from transformers import DistilBertTokenizer
 
 class MilvusEmbeddingProcessorTL:
@@ -25,7 +25,6 @@ class MilvusEmbeddingProcessorTL:
         return load_model_TL(self.model_path, self.tokenizer)
 
        
-
     def load_sentences_from_csv(self):
         return pd.read_csv(self.csv_file)
     
@@ -70,8 +69,9 @@ if __name__ == "__main__":
     csv_file = 'dataset/dataset_sentences_cleaned.csv'
 
     processor = MilvusEmbeddingProcessorTL(model_path, csv_file)
+    processor.process_and_store_embeddings()
 
+    # Only for testing purposes
     # results = processor.process_query('A story of flying dragons')
     # for result in results[0]:
     #     print(result)
-    processor.process_and_store_embeddings()

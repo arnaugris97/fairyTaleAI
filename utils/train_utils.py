@@ -3,16 +3,12 @@ import torch
 from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from Optimizer.scheduler_optim import ScheduledOptim
 from tensorboard_logger import TensorBoardLogger
 from tokenizer.wordPieceTokenizer import WordPieceTokenizer
 from BERT.BERT_model import BERT, BERTLM
 from dataloader.custom_dataset import Custom_Dataset
-from torch.optim import AdamW
 from torch.optim import Adam
-from transformers import get_inverse_sqrt_schedule
-from transformers import BertTokenizer
 
 
 class EarlyStopper:

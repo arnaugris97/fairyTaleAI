@@ -1,7 +1,6 @@
 import streamlit as st
 from API_secrets import ANTROPHIC_API_KEY, OPENAI_API_KEY
 from createTL_embedding_DB import MilvusEmbeddingProcessorTL
-from inference_utils import load_model, preprocess_input, generate_embeddings, search_chromadb, generate_output
 from langchain_community.llms import Ollama
 from langchain_openai import OpenAI
 import anthropic
