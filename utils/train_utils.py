@@ -184,7 +184,8 @@ def train_model(config):
     val_size = config['val_size']
 
     # Split the dataset into train, validation, and test sets
-    train, val = train_test_split(dataset_csv, test_size=val_size/(1-test_size), random_state=random_state)
+    train, val_test = train_test_split(dataset_csv, test_size=0.2, random_state=random_state)
+    val, test = train_test_split(val_test, test_size=0.5, random_state=random_state)
 
     train_dataset = Custom_Dataset(train, 2, tokenizer, config['max_seq_len'])
     val_dataset = Custom_Dataset(val, 2, tokenizer, config['max_seq_len'])
