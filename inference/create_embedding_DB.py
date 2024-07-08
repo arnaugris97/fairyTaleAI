@@ -73,6 +73,7 @@ if __name__ == "__main__":
     processor = MilvusEmbeddingProcessor(model_path, tokenizer_path, csv_file)
     processor.process_and_store_embeddings()
 
+    # Only for testing purposes
     # results = processor.process_query('A story of flying dragons')
     # for result in results[0]:
     #     print(result)
