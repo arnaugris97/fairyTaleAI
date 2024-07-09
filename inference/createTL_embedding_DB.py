@@ -22,7 +22,7 @@ class MilvusEmbeddingProcessorTL:
         )
 
     def load_bert_model(self):
-        return load_model_TL(self.model_path, self.tokenizer)
+        return load_model_TL(self.model_path)
 
        
     def load_sentences_from_csv(self):

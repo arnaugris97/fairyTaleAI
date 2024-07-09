@@ -41,7 +41,7 @@ def load_model(model_path, tokenizer_path):
     return model, tokenizer
 
 
-def load_model_TL(model_path, tokenizer):
+def load_model_TL(model_path):
     # Load the checkpoint
     checkpoint = torch.load(model_path)
     
