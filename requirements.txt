@@ -10,3 +10,7 @@ tensorboard
 pymilvus
 langchain_community
 streamlit
+matplotlib
+openai
+langchain-openai
+anthropic

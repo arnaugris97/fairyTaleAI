@@ -3,16 +3,11 @@ import torch
 from torch.utils.data import DataLoader
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from Optimizer.scheduler_optim import ScheduledOptim
 from tensorboard_logger import TensorBoardLogger
-from tokenizer.wordPieceTokenizer import WordPieceTokenizer
-from BERT.BERT_model import BERT, BERTLM, BERT_TL
-from dataloader.custom_dataset import Custom_Dataset,Custom_Dataset_TL
-from torch.optim import AdamW
+from BERT.BERT_model import BERT_TL
+from dataloader.custom_dataset import Custom_Dataset_TL
 from torch.optim import Adam
-from transformers import get_inverse_sqrt_schedule
-from transformers import BertTokenizer
 from transformers import DistilBertTokenizer
 
 
@@ -188,8 +183,9 @@ def train_model(config):
     val_size = config['val_size']
 
     # Split the dataset into train, validation, and test sets
-    train, val = train_test_split(dataset_csv, test_size=val_size/(1-test_size), random_state=random_state)
-
+    train, val_test = train_test_split(dataset_csv, test_size=0.2, random_state=random_state)
+    val, test = train_test_split(val_test, test_size=0.5, random_state=random_state)
+    
     train_dataset = Custom_Dataset_TL(train, 2, tokenizer, config['max_seq_len'])
     val_dataset = Custom_Dataset_TL(val, 2, tokenizer, config['max_seq_len'])
 

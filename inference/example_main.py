@@ -1,6 +1,8 @@
 from transformers import BertTokenizer, BertModel
 import torch
 
+# Flow from pretrained model to embeddings only to compare with the output of the model
+
 # Initialize a BERT tokenizer
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 model = BertModel.from_pretrained('bert-base-uncased')

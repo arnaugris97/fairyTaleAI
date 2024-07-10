@@ -1,3 +1,4 @@
+import torch
 from BERT.embedding_layer import EmbeddingLayer
 import torch.nn as nn
 from transformers import DistilBertForSequenceClassification,DistilBertForMaskedLM
@@ -119,12 +120,13 @@ class BERT_TL(nn.Module):
     Separated to be able to do inference to the main model
     """
 
-    def __init__(self,d_model=768,vocab_size=30522,max_length=512):
+    def __init__(self, is_inference=False):
         """
         :param bert: BERT model which should be trained
         :param vocab_size: total vocab size for masked_lm
         """
         super().__init__()
+        self.is_inference = is_inference
         model_MLM = DistilBertForMaskedLM.from_pretrained("distilbert-base-uncased")
         model_NSP = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
 
@@ -140,8 +142,11 @@ class BERT_TL(nn.Module):
         self.d_model = 768
     def forward(self, x, segment_label):
         x = self.bert(x, segment_label)[0]
+        pooled_output = torch.mean(x, dim=1) # Mean pooling
 
-        pooled_output =  x[:, 0] 
+        if self.is_inference:
+            return pooled_output
+        
         nsp_output = self.next_sentence(pooled_output) 
 
         mlm_output = self.mask_lm(x)
