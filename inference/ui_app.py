@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
 import streamlit as st
 from API_secrets import ANTROPHIC_API_KEY, OPENAI_API_KEY
 from createTL_embedding_DB import MilvusEmbeddingProcessorTL
@@ -30,17 +36,21 @@ if st.button("Generate Fairy Tale"):
     with st.spinner('Generating fairy tale...'):
         try:
             results, tokens = processor.process_query(userPrompt)
+            parsedContext = ''
             context = ''
             for result in results[0]:
                 
                     
                     if context == '':
                         context += result['entity']['text']
+                        parsedContext += result['entity']['text']
                     else:
                         context += ', ' + result['entity']['text']
+                        parsedContext += '\n \n' + result['entity']['text']
             
         
-            prompt_template = f"This is a prompt for a RAG system. I need you to create a fairy tale in catalan following the user prompt and the context. The prompt is the user prompt: {userPrompt} and this is the context: {context}. So the output should be in catalan."
+            prompt_template = f"You are a creative storyteller. Using the following user prompt and context, craft a fairy tale in Catalan. Ensure the story is engaging and follows a clear structure with a beginning, middle, and end. Be sure the story is recommended for children. The user prompt: {userPrompt}. The context: {context} Please write the story in Catalan. The output should be only the text with a title. The text should be structured in 3 paragraphs."
+            parsed_prompt_template = f"You are a creative storyteller. Using the following user prompt and context, craft a fairy tale in Catalan. \n \n Ensure the story is engaging and follows a clear structure with a beginning, middle, and end. \n \n Be sure the story is recommended for children. \n \n The user prompt: {userPrompt}. \n \n The context: {context} \n \n  Please write the story in Catalan. The output should be only the text with a title. The text should be structured in 3 paragraphs."
 
             # Using the selected model for inference
             if model_choice == "Llama 3":
@@ -68,9 +78,9 @@ if st.button("Generate Fairy Tale"):
                 st.write("### Tokens")
                 st.write(tokens)
                 st.write("### Context")
-                st.write(context)
+                st.write(parsedContext)
                 st.write("### Prompt Sent to Llama 3")
-                st.write(prompt_template)
+                st.write(parsed_prompt_template)
                 st.write("### Generated Fairy Tale")
                 st.write(llm_result)
             
