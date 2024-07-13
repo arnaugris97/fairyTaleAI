@@ -78,9 +78,10 @@ if __name__ == "__main__":
     csv_file = 'dataset/dataset_sentences_cleaned.csv'
 
     processor = MilvusEmbeddingProcessor(model_path, tokenizer_path, csv_file)
+    # This is to store the embeddings in Milvus
     # processor.process_and_store_embeddings()
 
-    # Only for testing purposes
+    # This is a query
     results = processor.process_query('A story of flying dragons')
     for result in results[0]:
         print(result)

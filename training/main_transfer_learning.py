@@ -1,4 +1,10 @@
-from train_utils_TL import train_model
+import sys
+from pathlib import Path
+
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
+from utils.train_utils_TL import train_model
 if __name__ == "__main__":
     config = {
         "lr": 1e-4,

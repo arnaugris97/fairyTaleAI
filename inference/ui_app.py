@@ -16,12 +16,17 @@ tokenizer_path = 'tokenizer/wordPieceVocab.json'
 
 processor = MilvusEmbeddingProcessorTL(model_path, '')
 llm = Ollama(model="llama3")
+model_options = ["Llama 3"]
 
-llmGPT = OpenAI(api_key=OPENAI_API_KEY, model="gpt-3.5-turbo-instruct", temperature=0)
+if (OPENAI_API_KEY):
+    llmGPT = OpenAI(api_key=OPENAI_API_KEY, model="gpt-3.5-turbo-instruct", temperature=0)
+    model_options.append("GPT 3.5 Turbo")
 
-client = anthropic.Anthropic(
-    api_key=ANTROPHIC_API_KEY,
-)
+if (ANTROPHIC_API_KEY):
+    client = anthropic.Anthropic(
+        api_key=ANTROPHIC_API_KEY,
+    )
+    model_options.append("Claude 3.5")
 
 st.title("Fairy Tale Generator")
 # Creating tabs
@@ -30,7 +35,8 @@ tab1, tab2 = st.tabs(["Fairy Tale Generator", "Detailed View"])
 userPrompt = st.text_input("Enter a prompt to generate a fairy tale:", "Once upon a time there was a little red riding hood who lived in a small village.")
 
 # Adding a toggle button to select between Llama 3 and ChatGPT
-model_choice = st.radio("Select the inference model:", ("Llama 3", "GPT 3.5 Turbo", "Claude 3.5"))
+
+model_choice = st.radio("Select the inference model:", model_options)
 
 if st.button("Generate Fairy Tale"):
     with st.spinner('Generating fairy tale...'):

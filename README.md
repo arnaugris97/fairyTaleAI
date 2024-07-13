@@ -3,15 +3,44 @@
 # Abstract
 
 # How to run it?
+In the next sections we show how to run the training and the inference, for both custom BERT and transfer learning BERT. In addition we show how to run the ui.
+
+- General setup
+    - Create virtual environment
+    - `pip install -r requirements.txt`
+- Resources used to train and inference
+    - 💻 Macbook Pro M3 Pro
+    - 📊 Milvus database
+    - ☁️ Zilliz cloud to manage vector database
+
+## How to run custom BERT training
+In order to run the training routing for custom BERT you should run the following file: `custom_model_train_main.py` inside the training folder.
+
+## How to run transfer learning training
+In order to run the training routing for transfer learning BERT you should run the following file: `main_transfer_learning.py` inside the training folder.
+
+## How to run custom BERT inference
+In order to perform an inference to custom BERT you should run the following file: `create_embedding_DB.py` inside the inference folder.
+Inside the file you can type your prompt to perform the inference.
+
+## How to run transfer learning training
+In order to perform an inference to custom BERT you should run the following file: `createTL_embedding_DB.py` inside the inference folder.
+Inside the file you can type your prompt to perform the inference.
+
+## How to run UI
+To run the UI you should run on the terminal the following command: `streamlit run inference/ui_app.py` from the root of the project.
+To be able to run the inference with Llama 3 in local you should install [Ollama](https://ollama.com/download) and download the model with 
+`ollama run llama3`.
+If you want to perform inference with the non local models (GPT-3.5 Turbo or Claude 3.5) You should add the specific api key for each of them in the file `API_secrets.py`.
 
 # Table of Contents
 
-[**3. Introduction**](#3.-Introduction)
+[**3. Introduction**](#Introduction)
 
-- [3.1 Background & Motivation](#3.1-Background-and-motivation)
-- [3.2 Objectives & Scope](#3.2-Objectives-and-scope)
+- [3.1 Background & Motivation](#Background-and-motivation)
+- [3.2 Objectives & Scope](#Objectives-and-scope)
 
-[**4. Methodology**](#4.-Methodology)
+[**4. Methodology**](#Methodology)
 
 - [4.1 Data Collection](#Data-Collection)
 - [4.2 Tokenizer](#Tokenizer)
