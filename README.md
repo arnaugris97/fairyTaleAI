@@ -34,7 +34,7 @@
 [**6. Conclusions**](#Conclusions-&-further-exploration)
 
 
-# Introduction
+# 3. Introduction
 
 ## Background and motivation
 
