@@ -11,7 +11,7 @@ from langchain_community.llms import Ollama
 from langchain_openai import OpenAI
 import anthropic
 
-model_path = 'Checkpoints/TL100Epochs.pt'
+model_path = 'Checkpoints/TL100EpochsMean.pt'
 tokenizer_path = 'tokenizer/wordPieceVocab.json'
 
 processor = MilvusEmbeddingProcessorTL(model_path, '')
@@ -79,7 +79,7 @@ if st.button("Generate Fairy Tale"):
                 st.write(tokens)
                 st.write("### Context")
                 st.write(parsedContext)
-                st.write("### Prompt Sent to Llama 3")
+                st.write("### Prompt Sent to LLM")
                 st.write(parsed_prompt_template)
                 st.write("### Generated Fairy Tale")
                 st.write(llm_result)

@@ -1,3 +1,10 @@
+
+import sys
+from pathlib import Path
+
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
 import pandas as pd
 from pymilvus import MilvusClient
 
@@ -66,14 +73,14 @@ class MilvusEmbeddingProcessor:
 
 # Example usage:
 if __name__ == "__main__":
-    model_path = 'Checkpoints/checkpoint20Epochs.pt'
+    model_path = 'Checkpoints/GoodCheckpoint.pt'
     tokenizer_path = 'tokenizer/wordPieceVocab.json'
     csv_file = 'dataset/dataset_sentences_cleaned.csv'
 
     processor = MilvusEmbeddingProcessor(model_path, tokenizer_path, csv_file)
-    processor.process_and_store_embeddings()
+    # processor.process_and_store_embeddings()
 
     # Only for testing purposes
-    # results = processor.process_query('A story of flying dragons')
-    # for result in results[0]:
-    #     print(result)
+    results = processor.process_query('A story of flying dragons')
+    for result in results[0]:
+        print(result)
