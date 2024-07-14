@@ -191,7 +191,7 @@ These analyses helped us to understand the dataset better and guided our preproc
 
 For training and validating our model, we have gathered a total of 1,183 fairy tales. Here are some key metrics of our dataset:
 
-- **Total Sentences**: 128,541 sentences
+- **Total Sentences**: 131,256 sentences
 - **Mean Sentences per Story**: 114 sentences
 - **Total Words**: 2,631,859 words
 
@@ -1124,8 +1124,8 @@ The following table presentsa final comparison between the best performing exper
 
 | Model |MLM top 1 Accuracy | NSP Accuracy |
 |----------|----------|----------|
-| **Custom BERT**   | 13.69%   | 10.55%|
-| **TL DistilBERT**   | 46.61%  |0.6028% |
+| **Custom BERT**   | 13.69%   | 51.38%|
+| **TL DistilBERT**   | 46.61%  |60.28% |
 
 ### Embedding representation results
 
