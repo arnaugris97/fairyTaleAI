@@ -1,6 +1,6 @@
 # fairyTaleAI
 
-# Abstract
+# 1. Abstract
 
 This project aims to assist young parents by making bedtime storytelling easier and more engaging for their children. We chose to develop a Retrieval-Augmented Generation (RAG) system to ensure that the generated fairy tales include fragments or references to well-renowned stories we grew up with and have read previously.
 
@@ -12,7 +12,7 @@ Key insights include the benefits of fine-tuning pretrained models, addressing s
 
 This project demonstrates the potential of RAG systems in AI storytelling, highlighting current capabilities and future opportunities.
 
-# How to run it?
+# 2. How to run it?
 In the next sections we show how to run the training and the inference, for both custom BERT and transfer learning BERT. In addition we show how to run the ui.
 
 - General setup
