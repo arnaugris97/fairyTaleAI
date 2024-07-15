@@ -41,7 +41,7 @@ Inside the file you can type your prompt to perform the inference.
 To run the UI you should run on the terminal the following command: `streamlit run inference/ui_app.py` from the root of the project.
 To be able to run the inference with Llama 3 in local you should install [Ollama](https://ollama.com/download) and download the model with 
 `ollama run llama3`.
-If you want to perform inference with the non local models (GPT-3.5 Turbo or Claude 3.5) You should add the specific api key for each of them in the file `API_secrets.py`.
+If you want to perform inference with the non local models (GPT-3.5 Turbo or Claude 3.5) You should add the specific api key for each of them in the file `API_secrets.py` inside the inference folder.
 
 # Table of Contents
 
